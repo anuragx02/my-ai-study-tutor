@@ -12,7 +12,7 @@ env = environ.Env()
 env.read_env(BASE_DIR / ".env", overwrite=True)
 
 SECRET_KEY = env("SECRET_KEY")
-DEBUG = env("DEBUG")
+DEBUG = env.bool("DEBUG", default=False)
 
 # On Render, RENDER_EXTERNAL_HOSTNAME is set automatically.
 render_hostname = env("RENDER_EXTERNAL_HOSTNAME", default="").strip()
