@@ -40,9 +40,9 @@ npm run build
 This project is configured to run on Render without Docker.
 
 ### Backend (Web Service)
-- Root Directory: `backend`
-- Build Command: `pip install -r requirements.txt && python manage.py migrate`
-- Start Command: `gunicorn config.wsgi:application --bind 0.0.0.0:$PORT`
+- Root Directory: repository root
+- Build Command: `pip install -r requirements.txt`
+- Start Command: `gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT`
 
 Required environment variables:
 - `DEBUG=False`

@@ -2,11 +2,11 @@ import os
 import sys
 import django
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
 sys.path.insert(0, 'd:\\heatmap\\ai-study-tutor\\backend')
 django.setup()
 
-from apps.core.services.ai_service import ask_ai
+from backend.apps.core.services.ai_service import ask_ai
 from django.conf import settings
 
 print(f"GROQ_API_KEY loaded: {settings.GROQ_API_KEY[:20]}...")

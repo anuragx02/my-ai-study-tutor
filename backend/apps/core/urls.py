@@ -1,11 +1,11 @@
 from django.urls import include, path
 
 urlpatterns = [
-    path("auth/", include("apps.core.api.auth")),
-    path("courses/", include("apps.core.api.courses")),
-    path("materials/", include("apps.core.api.materials")),
-    path("quiz/", include("apps.core.api.quiz")),
-    path("ai/", include("apps.core.api.ai")),
-    path("analytics/", include("apps.core.api.analytics")),
-    path("recommendations/", include("apps.core.api.recommendations")),
+    path("auth/", include("backend.apps.core.api.auth")),
+    path("courses/", include("backend.apps.core.api.courses")),
+    path("materials/", include("backend.apps.core.api.materials")),
+    path("quiz/", include("backend.apps.core.api.quiz")),
+    path("ai/", include("backend.apps.core.api.ai")),
+    path("analytics/", include("backend.apps.core.api.analytics")),
+    path("recommendations/", include("backend.apps.core.api.recommendations")),
 ]

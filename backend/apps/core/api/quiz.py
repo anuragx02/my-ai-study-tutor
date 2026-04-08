@@ -1,6 +1,6 @@
 from django.urls import path
 
-from apps.core.views import QuizGenerateView, QuizListView, QuizSubmitView
+from backend.apps.core.views import QuizGenerateView, QuizListView, QuizSubmitView
 
 urlpatterns = [
     path("generate", QuizGenerateView.as_view(), name="quiz-generate"),

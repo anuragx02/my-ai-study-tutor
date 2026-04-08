@@ -2,7 +2,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-from apps.core.managers import UserManager
+from backend.apps.core.managers import UserManager
 
 
 class User(AbstractUser):

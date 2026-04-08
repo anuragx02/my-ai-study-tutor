@@ -1,6 +1,6 @@
 from django.urls import path
 
-from apps.core.views import CourseListCreateView, TopicListCreateView
+from backend.apps.core.views import CourseListCreateView, TopicListCreateView
 
 urlpatterns = [
     path("", CourseListCreateView.as_view(), name="course-list-create"),

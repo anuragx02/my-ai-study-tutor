@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 
-from apps.core.models import Course, Question, Quiz, StudyMaterial, StudyRecommendation, Topic, UserPerformance
+from backend.apps.core.models import Course, Question, Quiz, StudyMaterial, StudyRecommendation, Topic, UserPerformance
 
 User = get_user_model()
 

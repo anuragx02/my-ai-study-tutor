@@ -10,9 +10,9 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.core.models import Course, Question, Quiz, StudyMaterial, StudyRecommendation, Topic, UserPerformance
-from apps.core.permissions import IsTutorOrAdmin
-from apps.core.serializers import (
+from backend.apps.core.models import Course, Question, Quiz, StudyMaterial, StudyRecommendation, Topic, UserPerformance
+from backend.apps.core.permissions import IsTutorOrAdmin
+from backend.apps.core.serializers import (
     AskSerializer,
     CourseSerializer,
     LoginSerializer,
@@ -26,7 +26,7 @@ from apps.core.serializers import (
     UserPerformanceSerializer,
     UserSerializer,
 )
-from apps.core.services.ai_service import ask_ai, generate_quiz as generate_ai_quiz
+from backend.apps.core.services.ai_service import ask_ai, generate_quiz as generate_ai_quiz
 
 
 class RegisterView(generics.CreateAPIView):
