@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Study Tutor</title>
+    <link rel="stylesheet" href="/static/styles.css?v=2" />
+    <link rel="stylesheet" href="/static/responsive.css?v=2" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+  <body>
+    <div class="app">
+      <div id="loader">
+        <img
+          src="https://github.githubassets.com/images/mona-loading-dark.gif"
+          alt="Loading..."
+          width="64"
+          height="64"
+        />
+        <div class="spinner">just a moment</div>
+      </div>
+      <aside class="sidebar flex flex-col pt-3">
+        <div class="p-2 border border-sm h-10 mt-1 ml-1 rounded-2xl"><i class="fa-solid fa-arrow-left"></i><a href="index.html "> home</a></div>
+        <h2 class="mt-4 pl-7 pt-2 font-semibold">Previous Chats</h2>
+        <button id="new-chat-btn" class="mt-2 mx-1 p-2 border rounded-2xl hover:bg-blue-500">
+          <i class="fa-solid fa-plus"></i> New Chat
+        </button>
+        <ul id="sessions" class="sessions-list mt-2"></ul>
+      </aside>
+      <main class="chat">
+       <header class="chat-header">
+          <button id="menu-btn" class="menu-btn" aria-label="Open menu" title="Menu" style="display:none">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <h1>
+            AI Study Tutor
+            <span id="current-username" class="text-sm text-gray-300 ml-2"></span>
+            <span id="rec-indicator" class="rec-indicator" style="display: none"
+              ><i class="fa-solid fa-record-vinyl"></i> Recording</span
+            >
+            <button id="logout-btn" class="logout-btn" title="Logout" onclick="handleLogout()">
+              <i class="fa-solid fa-right-from-bracket"></i>
+            </button>
+            <button id="settings-btn" class="settings-btn" title="Settings">
+              <i class="fa-solid fa-gear"></i>
+            </button>
+          </h1>
+        </header>
+        <div id="settings-modal" class="modal" style="display: none">
+          <div class="modal-content">
+            <h3 class="text-3xl pb-2">Settings</h3>
+            <label for="voice-select">Voice</label>
+            <select id="voice-select">
+              <option value="Gail-PlayAI" class="bg-black text-white">
+                Gail-PlayAI
+              </option>
+              <option value="Fritz-PlayAI" class="bg-black text-white">
+                Fritz-PlayAI
+              </option>
+              <option value="Arista-PlayAI" class="bg-black text-white">
+                Arista-PlayAI
+              </option>
+              <option value="Atlas-PlayAI" class="bg-black text-white">
+                Atlas-PlayAI
+              </option>
+              <option value="Quinn-PlayAI" class="bg-black text-white">
+                Quinn-PlayAI
+              </option>
+              <option value="Thunder-PlayAI" class="bg-black text-white">
+                Thunder-PlayAI
+              </option>
+            </select>
+            <label style="display: block; margin-top: 10px"
+              ><input type="checkbox" id="reasoning-toggle" /> Detailed
+              reasoning (step-by-step)</label
+            >
+            <div class="modal-actions">
+              <button
+                id="settings-save"
+                class="bg-blue-400 p-1 text-xl rounded-xl hover:bg-blue-500"
+              >
+                Save
+              </button>
+              <button
+                id="settings-cancel"
+                class="bg-blue-400 p-1 text-xl rounded-xl hover:bg-blue-500"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+        <div id="messages" class="messages"></div>
+        <footer class="composer">
+          <input id="text-input" placeholder="Ask a question..." />
+          <button id="send-btn">
+            <i class="fa-solid fa-paper-plane"></i> Send
+          </button>
+          <button id="voice-btn" title="Record voice">
+            <i class="fa-solid fa-microphone"></i>
+          </button>
+          <button id="upload-btn" title="Upload file">
+            <i class="fa-solid fa-link"></i>
+          </button>
+          <span
+            id="staged-file"
+            class="staged-file"
+            style="display: none"
+          ></span>
+          <input
+            type="file"
+            id="file-input"
+            accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webm,.wav,.mp3,.m4a,.ogg"
+            style="display: none"
+          />
+        </footer>
+      </main>
+    </div>
+    <div id="sidebar-overlay" class="sidebar-overlay" style="display:none"></div>
+    <div
+      class="cursor fixed top-0 left-0 w-[30px] h-[30px] border-2 border-white rounded-full pointer-events-none -translate-x-1/2 -translate-y-1/2 scale-100 transition-transform ease-in-out duration-150 z-[9999] shadow-[0_0_8px_rgba(255,255,255,0.6)]"
+    ></div>
+        <script>
+      const cursor = document.querySelector(".cursor");
+
+      document.addEventListener("mousemove", (e) => {
+        cursor.style.top = e.clientY + "px";
+        cursor.style.left = e.clientX + "px";
+      });
+
+      document
+        .querySelectorAll("a, button, .nav-item, .nav-link")
+        .forEach((el) => {
+          el.addEventListener("mouseenter", () => {
+            cursor.classList.remove(
+              "scale-100",
+              "border-white",
+              "shadow-[0_0_8px_rgba(255,255,255,0.6)]"
+            );
+            cursor.classList.add(
+              "scale-150",
+              "border-sky-400",
+              "shadow-[0_0_12px_rgba(56,189,248,0.8)]"
+            );
+          });
+          el.addEventListener("mouseleave", () => {
+            cursor.classList.remove(
+              "scale-150",
+              "border-sky-400",
+              "shadow-[0_0_12px_rgba(56,189,248,0.8)]"
+            );
+            cursor.classList.add(
+              "scale-100",
+              "border-white",
+              "shadow-[0_0_8px_rgba(255,255,255,0.6)]"
+            );
+          });
+        });
+    </script>
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [
+            ["$", "$"],
+            ["\\(", "\\)"],
+          ],
+          displayMath: [
+            ["$$", "$$"],
+            ["\\[", "\\]"],
+          ],
+          processEscapes: true,
+        },
+        svg: { fontCache: "global" },
+      };
+    </script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"
+      integrity="sha384-5Vt2KJkC0mP3gq6E2k4Y3o6iQmPpKcJg1CwEJrZ0VYcJpJr8n0x6KQ9f0tHk5R9b"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"
+      integrity="sha384-Ux3m8b1F1Qk1qJg8uVn6rX5i8fJqQ9Q0x1S6Qx2fWc7V9n2H8rXvWmJ0vC0pL3h2"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"
+      integrity="sha512-NcZdtrT77bJr4STcmsGAESr06BYGE8woZdSdEgqnpyqac7sugNO+Tr4bGwGF3MsnEkGKhU2KL2xh6Ec+BqsaHA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script>
+      (function(){
+        const menuBtn = document.getElementById('menu-btn');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        function openSidebar(){
+          document.body.classList.add('sidebar-open');
+        }
+        function closeSidebar(){
+          document.body.classList.remove('sidebar-open');
+        }
+
+        if(menuBtn && overlay){
+          menuBtn.addEventListener('click', ()=>{
+            document.body.classList.toggle('sidebar-open');
+          });
+          overlay.addEventListener('click', closeSidebar);
+
+          // Keep behaviour consistent on resize: remove class when not in mobile breakpoint
+          function updateMenuVisibility(){
+            const isS20 = window.matchMedia('(max-width: 420px) and (max-height: 920px)').matches;
+            if(!isS20){
+              closeSidebar();
+            }
+          }
+          window.addEventListener('resize', updateMenuVisibility);
+          updateMenuVisibility();
+        }
+      })();
+    </script>
+    <script src="/static/main.js?v=99"></script>
+  </body>
+</html>
