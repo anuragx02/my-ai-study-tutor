@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev.ps1",
-    "backend": ".\\.venv\\Scripts\\python.exe backend\\manage.py runserver",
-    "migrate": ".\\.venv\\Scripts\\python.exe backend\\manage.py migrate",
+    "backend": ".\\.venv\\Scripts\\python.exe manage.py runserver",
+    "migrate": ".\\.venv\\Scripts\\python.exe manage.py migrate",
     "frontend": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview"

@@ -1,6 +1,6 @@
 $workspaceRoot = Split-Path -Parent $PSScriptRoot
 $pythonPath = Join-Path $workspaceRoot ".venv\Scripts\python.exe"
-$managePath = Join-Path $workspaceRoot "backend\manage.py"
+$managePath = Join-Path $workspaceRoot "manage.py"
 
 if (-not (Test-Path $pythonPath)) {
     Write-Error "Python environment not found at $pythonPath"

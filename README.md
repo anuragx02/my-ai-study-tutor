@@ -72,6 +72,8 @@ npm run backend
 npm run frontend
 ```
 
+The root `manage.py` is the Django entrypoint; it loads the `backend/` package path automatically.
+
 ## API endpoints
 - `POST /api/auth/register`
 - `POST /api/auth/login`
