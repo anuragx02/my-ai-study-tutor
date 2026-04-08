@@ -13,7 +13,17 @@ env.read_env(BASE_DIR / ".env", overwrite=True)
 
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
+
+# On Render, RENDER_EXTERNAL_HOSTNAME is set automatically.
+render_hostname = env("RENDER_EXTERNAL_HOSTNAME", default="").strip()
+configured_hosts = [host.strip() for host in env.list("ALLOWED_HOSTS", default=[]) if host.strip()]
+
+if render_hostname:
+    configured_hosts.append(render_hostname)
+
+# Keep common local hosts available for development.
+configured_hosts.extend(["localhost", "127.0.0.1"])
+ALLOWED_HOSTS = sorted(set(configured_hosts))
 
 INSTALLED_APPS = [
     "django.contrib.admin",
