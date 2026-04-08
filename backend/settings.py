@@ -109,7 +109,7 @@ USE_TZ = True
 STATIC_URL = "/static/"
 _static_candidates = [
     BASE_DIR.parent / "static",
-    BASE_DIR.parent / "frontend" / "dist" / "assets",
+    BASE_DIR.parent / "frontend" / "dist",
 ]
 STATICFILES_DIRS = [path for path in _static_candidates if path.exists()]
 STATIC_ROOT = BASE_DIR / "staticfiles"
