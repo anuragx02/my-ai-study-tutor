@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 from django.http import JsonResponse
+from django.shortcuts import redirect
 
 
 def health_check(request):
@@ -8,14 +9,7 @@ def health_check(request):
 
 
 def service_root(request):
-    return JsonResponse(
-        {
-            "service": "ai-study-tutor",
-            "status": "ok",
-            "health": "/api/health/",
-            "api": "/api/",
-        }
-    )
+    return redirect('/static/index.html')
 
 
 urlpatterns = [
