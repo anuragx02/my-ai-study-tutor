@@ -9,7 +9,7 @@ export default function CoursesPage() {
   const [topicForm, setTopicForm] = useState({ course: '', title: '', difficulty: 'easy' })
   const [error, setError] = useState('')
 
-  const canEdit = user && ['admin', 'tutor'].includes(user.role)
+  const canEdit = Boolean(user?.is_staff)
 
   const topics = useMemo(() => courses.flatMap((course) => course.topics.map((topic) => ({ ...topic, courseTitle: course.title }))), [courses])
 
@@ -49,7 +49,7 @@ export default function CoursesPage() {
   return (
     <section className="card">
       <h2 className="page-title">Courses</h2>
-      <p className="muted">Browse courses and, if authorized, create courses and topics.</p>
+      <p className="muted">Browse courses and topics.</p>
       {error ? <div style={{ color: '#ff8b92' }}>{error}</div> : null}
       {canEdit ? (
         <div className="feature-grid" style={{ marginTop: 20 }}>

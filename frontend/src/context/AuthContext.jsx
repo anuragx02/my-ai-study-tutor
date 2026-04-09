@@ -78,7 +78,6 @@ export function AuthProvider({ children }) {
       logout,
       authReady,
       isAuthenticated: Boolean(user),
-      hasRole: (roles) => Boolean(user && roles.includes(user.role)),
     }),
     [user, authReady],
   )

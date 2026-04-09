@@ -7,7 +7,7 @@ export default function MaterialsPage() {
   const [courses, setCourses] = useState([])
   const [materials, setMaterials] = useState([])
   const [form, setForm] = useState({ topic: '', title: '', material_type: 'pdf', content_url: '', summary: '' })
-  const canEdit = user && ['admin', 'tutor'].includes(user.role)
+  const canEdit = Boolean(user?.is_staff)
 
   const topics = useMemo(() => courses.flatMap((course) => course.topics.map((topic) => ({ ...topic, courseTitle: course.title }))), [courses])
 

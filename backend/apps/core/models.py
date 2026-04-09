@@ -6,15 +6,10 @@ from backend.apps.core.managers import UserManager
 
 
 class User(AbstractUser):
-    class Role(models.TextChoices):
-        STUDENT = "student", "Student"
-        TUTOR = "tutor", "Tutor"
-        ADMIN = "admin", "Admin"
-
     username = None
     email = models.EmailField(unique=True)
     name = models.CharField(max_length=255)
-    role = models.CharField(max_length=20, choices=Role.choices, default=Role.STUDENT)
+    role = models.CharField(max_length=20, default="student", editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     objects = UserManager()
 

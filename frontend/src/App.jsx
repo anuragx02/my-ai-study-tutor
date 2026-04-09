@@ -12,7 +12,6 @@ import MaterialsPage from './pages/MaterialsPage'
 import QuizPage from './pages/QuizPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import RecommendationsPage from './pages/RecommendationsPage'
-import AdminPage from './pages/AdminPage'
 
 export default function App() {
   return (
@@ -31,11 +30,6 @@ export default function App() {
             <Route path="/quiz" element={<QuizPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/recommendations" element={<RecommendationsPage />} />
-          </Route>
-        </Route>
-        <Route element={<ProtectedRoute roles={["admin"]} />}>
-          <Route element={<Layout />}>
-            <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -7,11 +7,11 @@ from backend.apps.core.models import User
 @admin.register(User)
 class UserAdmin(DjangoUserAdmin):
     model = User
-    list_display = ("email", "name", "role", "is_staff", "is_active")
-    list_filter = ("role", "is_staff", "is_active")
+    list_display = ("email", "name", "is_staff", "is_active")
+    list_filter = ("is_staff", "is_active")
     fieldsets = (
         (None, {"fields": ("email", "password")}),
-        ("Profile", {"fields": ("name", "role")}),
+        ("Profile", {"fields": ("name",)}),
         ("Permissions", {"fields": ("is_staff", "is_active", "is_superuser", "groups", "user_permissions")}),
         ("Important dates", {"fields": ("last_login", "date_joined")}),
     )
@@ -20,7 +20,7 @@ class UserAdmin(DjangoUserAdmin):
             None,
             {
                 "classes": ("wide",),
-                "fields": ("email", "name", "role", "password1", "password2"),
+                "fields": ("email", "name", "password1", "password2"),
             },
         ),
     )

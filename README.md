@@ -5,7 +5,7 @@ AI Study Tutor is a three-tier learning platform with a Django REST API, a React
 Groq powers the AI tutor and quiz generation layer when `GROQ_API_KEY` is configured.
 
 ## Architecture
-- Presentation layer: React UI in `frontend/`
+- Presentation layer: React SPA in `frontend/`, served from Django in production
 - Application layer: Django REST API in `backend/`
 - Data layer: SQLite locally, PostgreSQL in production
 
@@ -39,29 +39,23 @@ npm run build
 ## Deploy on Render
 This project is configured to run on Render without Docker.
 
-### Backend (Web Service)
+### Single Web Service
 - Root Directory: repository root
-- Build Command: `pip install -r requirements.txt`
-- Start Command: `gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT`
+- Build Command: `npm --prefix frontend install && npm run build && pip install -r requirements.txt && python manage.py collectstatic --noinput`
+- Start Command: `python manage.py migrate && gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT`
 
 Required environment variables:
 - `DEBUG=False`
 - `SECRET_KEY=<your-secret>`
 - `DATABASE_URL=<render-postgres-url>`
-- `ALLOWED_HOSTS=<your-render-backend-domain>`
-- `CORS_ALLOWED_ORIGINS=<your-render-frontend-url>`
-- `CSRF_TRUSTED_ORIGINS=<your-render-backend-url>`
+- `ALLOWED_HOSTS=<your-render-domain>`
+- `CORS_ALLOWED_ORIGINS=https://<your-render-domain>`
+- `CSRF_TRUSTED_ORIGINS=https://<your-render-domain>`
 - `GROQ_API_KEY=<your-groq-key>`
 - `GROQ_API_BASE=https://api.groq.com`
 - `GROQ_MODEL=llama-3.3-70b-versatile`
 
-### Frontend (Static Site)
-- Root Directory: `frontend`
-- Build Command: `npm ci && npm run build`
-- Publish Directory: `dist`
-
-Set this environment variable for the frontend build:
-- `VITE_API_BASE_URL=<your-render-backend-url>/api`
+The React app is built into `frontend/dist` and served by Django/WhiteNoise.
 
 ## Root-only Workflow
 No directory switching is required for day-to-day development.

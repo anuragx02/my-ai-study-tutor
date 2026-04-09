@@ -107,12 +107,13 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "name", "email", "password", "role", "created_at"]
+        fields = ["id", "name", "email", "password", "created_at"]
         read_only_fields = ["id", "created_at"]
 
     def create(self, validated_data):
         password = validated_data.pop("password")
         validated_data["email"] = User.objects.normalize_email(validated_data["email"])
+        validated_data["role"] = "student"
         user = User(**validated_data)
         user.set_password(password)
         user.save()
@@ -139,10 +140,12 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    is_staff = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = User
-        fields = ["id", "name", "email", "role", "created_at"]
-        read_only_fields = ["id", "email", "role", "created_at"]
+        fields = ["id", "name", "email", "is_staff", "created_at"]
+        read_only_fields = ["id", "email", "is_staff", "created_at"]
 
 
 class LogoutSerializer(serializers.Serializer):

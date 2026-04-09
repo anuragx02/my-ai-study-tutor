@@ -9,18 +9,10 @@ const navItems = [
   { to: '/quiz', label: 'Quiz Interface' },
   { to: '/analytics', label: 'Analytics' },
   { to: '/recommendations', label: 'Recommendations' },
-  { to: '/admin', label: 'Admin Panel', roles: ['admin'] },
 ]
 
 export default function Layout() {
   const { user, logout } = useAuth()
-
-  const filteredNavItems = navItems.filter((item) => {
-    if (item.roles && user) {
-      return item.roles.includes(user.role)
-    }
-    return true
-  })
 
   return (
     <div className="shell">
@@ -28,10 +20,10 @@ export default function Layout() {
         <div className="brand">
           <h1>AI Study Tutor</h1>
           <span className="muted">Learn, quiz, and improve</span>
-          <span className="muted">{user?.name} · {user?.role}</span>
+          <span className="muted">{user?.name}</span>
         </div>
         <nav className="nav-list">
-          {filteredNavItems.map((item) => (
+          {navItems.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
               {item.label}
             </NavLink>

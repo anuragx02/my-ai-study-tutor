@@ -11,7 +11,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from backend.apps.core.models import Course, Question, Quiz, StudyMaterial, StudyRecommendation, Topic, UserPerformance
-from backend.apps.core.permissions import IsTutorOrAdmin
+from backend.apps.core.permissions import IsStaffUser
 from backend.apps.core.serializers import (
     AskSerializer,
     CourseSerializer,
@@ -99,7 +99,7 @@ class CourseListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method.upper() == "POST":
-            return [IsAuthenticated(), IsTutorOrAdmin()]
+            return [IsAuthenticated(), IsStaffUser()]
         return super().get_permissions()
 
     def perform_create(self, serializer):
@@ -109,7 +109,7 @@ class CourseListCreateView(generics.ListCreateAPIView):
 class TopicListCreateView(generics.ListCreateAPIView):
     queryset = Topic.objects.select_related("course")
     serializer_class = TopicSerializer
-    permission_classes = [IsAuthenticated, IsTutorOrAdmin]
+    permission_classes = [IsAuthenticated, IsStaffUser]
 
 
 class StudyMaterialListCreateView(generics.ListCreateAPIView):
@@ -119,7 +119,7 @@ class StudyMaterialListCreateView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method.upper() == "POST":
-            return [IsAuthenticated(), IsTutorOrAdmin()]
+            return [IsAuthenticated(), IsStaffUser()]
         return super().get_permissions()
 
 
