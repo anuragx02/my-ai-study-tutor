@@ -13,6 +13,7 @@ spa_index = TemplateView.as_view(template_name="index.html")
 
 
 urlpatterns = [
+    path("admin", RedirectView.as_view(url="/admin/", permanent=False)),
     path("admin/", admin.site.urls),
     path("api/health/", health_check),
     path("api/", include("backend.apps.core.urls")),
