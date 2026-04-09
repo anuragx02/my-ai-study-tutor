@@ -1,20 +1,34 @@
 from collections import Counter
+from pathlib import Path
 
 from django.db.models import Avg, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from backend.apps.core.models import Course, Question, Quiz, StudyMaterial, StudyRecommendation, Topic, UserPerformance
+from backend.apps.core.models import (
+    Course,
+    KnowledgeChunk,
+    KnowledgeDocument,
+    Question,
+    Quiz,
+    StudyMaterial,
+    StudyRecommendation,
+    Topic,
+    UserPerformance,
+)
 from backend.apps.core.permissions import IsStaffUser
 from backend.apps.core.serializers import (
     AskSerializer,
     CourseSerializer,
+    KnowledgeDocumentSerializer,
+    KnowledgeDocumentUploadSerializer,
     LoginSerializer,
     LogoutSerializer,
     ProfileSerializer,
@@ -27,6 +41,46 @@ from backend.apps.core.serializers import (
     UserSerializer,
 )
 from backend.apps.core.services.ai_service import ask_ai, generate_quiz as generate_ai_quiz
+
+from docx import Document as DocxDocument
+from pypdf import PdfReader
+from llama_index.core.node_parser import SentenceSplitter
+
+
+def _detect_source_type(filename: str) -> str:
+    extension = Path(filename).suffix.lower().lstrip(".")
+    if extension in {"pdf", "docx", "txt", "md"}:
+        return extension
+    return "image"
+
+
+def _extract_text_from_upload(uploaded_file, source_type: str) -> str:
+    if source_type in {"txt", "md"}:
+        return uploaded_file.read().decode("utf-8", errors="ignore")
+
+    if source_type == "pdf":
+        reader = PdfReader(uploaded_file)
+        return "\n".join((page.extract_text() or "") for page in reader.pages)
+
+    if source_type == "docx":
+        doc = DocxDocument(uploaded_file)
+        return "\n".join(paragraph.text for paragraph in doc.paragraphs)
+
+    raise ValueError("Image OCR is planned but not enabled in this phase.")
+
+
+def _chunk_text(content: str) -> list[str]:
+    splitter = SentenceSplitter(chunk_size=700, chunk_overlap=80)
+    nodes = splitter.get_nodes_from_documents([])
+    # LlamaIndex splitter expects documents/nodes; fallback to deterministic slicing for now.
+    if not nodes:
+        chunks = []
+        text = content.strip()
+        while text:
+            chunks.append(text[:700])
+            text = text[620:]
+        return chunks
+    return [node.text for node in nodes if getattr(node, "text", "").strip()]
 
 
 class RegisterView(generics.CreateAPIView):
@@ -218,7 +272,16 @@ class AskView(APIView):
             material_summaries = [material.summary or material.title for material in topic.materials.all()[:5]]
             topic_context = f"{topic.course.title} > {topic.title}. Materials: {' | '.join(material_summaries)}"
 
-        result = ask_ai(serializer.validated_data["question"], topic_context=topic_context)
+        question_text = serializer.validated_data["question"]
+        kb_hits = KnowledgeChunk.objects.filter(user=request.user, content__icontains=question_text[:40]).select_related("document")[:4]
+        if kb_hits:
+            kb_context = "\n".join(
+                f"[{item.document.title}#{item.chunk_index}] {item.content[:400]}"
+                for item in kb_hits
+            )
+            topic_context = f"{topic_context or 'knowledge base context'}\nKB:\n{kb_context}"
+
+        result = ask_ai(question_text, topic_context=topic_context)
         return Response(
             {
                 "answer": result.answer,
@@ -227,6 +290,76 @@ class AskView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class KnowledgeDocumentListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request):
+        documents = KnowledgeDocument.objects.filter(user=request.user)
+        return Response(KnowledgeDocumentSerializer(documents, many=True).data)
+
+    def post(self, request):
+        serializer = KnowledgeDocumentUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        uploaded_file = serializer.validated_data["file"]
+        title = serializer.validated_data.get("title") or uploaded_file.name
+        tags = serializer.validated_data.get("tags", [])
+        source_type = _detect_source_type(uploaded_file.name)
+
+        try:
+            content = _extract_text_from_upload(uploaded_file, source_type)
+        except Exception as exc:
+            document = KnowledgeDocument.objects.create(
+                user=request.user,
+                title=title,
+                source_type=source_type,
+                tags=tags,
+                original_filename=uploaded_file.name,
+                status=KnowledgeDocument.Status.FAILED,
+                error_message=str(exc),
+            )
+            return Response(KnowledgeDocumentSerializer(document).data, status=status.HTTP_400_BAD_REQUEST)
+
+        document = KnowledgeDocument.objects.create(
+            user=request.user,
+            title=title,
+            source_type=source_type,
+            tags=tags,
+            original_filename=uploaded_file.name,
+            content=content,
+            status=KnowledgeDocument.Status.READY,
+        )
+
+        chunks = _chunk_text(content)
+        KnowledgeChunk.objects.bulk_create(
+            [
+                KnowledgeChunk(document=document, user=request.user, chunk_index=index, content=chunk)
+                for index, chunk in enumerate(chunks)
+                if chunk.strip()
+            ]
+        )
+
+        return Response(KnowledgeDocumentSerializer(document).data, status=status.HTTP_201_CREATED)
+
+
+class KnowledgeDocumentDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, document_id):
+        document = get_object_or_404(KnowledgeDocument, id=document_id, user=request.user)
+        document.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class KnowledgeDocumentPurgeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        deleted_count, _ = KnowledgeDocument.objects.filter(user=request.user).delete()
+        return Response({"deleted_documents": deleted_count}, status=status.HTTP_200_OK)
 
 
 class ProgressView(APIView):

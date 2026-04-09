@@ -2,7 +2,17 @@ from rest_framework import serializers
 from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 
-from backend.apps.core.models import Course, Question, Quiz, StudyMaterial, StudyRecommendation, Topic, UserPerformance
+from backend.apps.core.models import (
+    Course,
+    KnowledgeChunk,
+    KnowledgeDocument,
+    Question,
+    Quiz,
+    StudyMaterial,
+    StudyRecommendation,
+    Topic,
+    UserPerformance,
+)
 
 User = get_user_model()
 
@@ -100,6 +110,37 @@ class StudyRecommendationSerializer(serializers.ModelSerializer):
 class AskSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=2000)
     topic_id = serializers.IntegerField(required=False, allow_null=True)
+
+
+class KnowledgeDocumentUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
+    title = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    tags = serializers.ListField(child=serializers.CharField(max_length=50), required=False, default=list)
+
+
+class KnowledgeChunkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KnowledgeChunk
+        fields = ["id", "chunk_index", "content", "created_at"]
+
+
+class KnowledgeDocumentSerializer(serializers.ModelSerializer):
+    chunk_count = serializers.IntegerField(source="chunks.count", read_only=True)
+
+    class Meta:
+        model = KnowledgeDocument
+        fields = [
+            "id",
+            "title",
+            "source_type",
+            "tags",
+            "original_filename",
+            "status",
+            "error_message",
+            "chunk_count",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class UserSerializer(serializers.ModelSerializer):
