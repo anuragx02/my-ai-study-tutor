@@ -1,5 +1,6 @@
 import os
 
+from django.contrib.auth.hashers import make_password
 from django.db import migrations
 
 
@@ -39,7 +40,7 @@ def create_superuser_from_env(apps, schema_editor):
         is_superuser=True,
         is_active=True,
     )
-    user.set_password(password)
+    user.password = make_password(password)
     user.save(using=db_alias)
 
 

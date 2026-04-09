@@ -1,5 +1,6 @@
 import os
 
+from django.contrib.auth.hashers import make_password
 from django.db import migrations
 
 
@@ -33,7 +34,7 @@ def sync_superuser_password_from_env(apps, schema_editor):
             user.name = name
 
     # Always sync password from env so login works predictably.
-    user.set_password(password)
+    user.password = make_password(password)
     user.save(using=db_alias)
 
 
