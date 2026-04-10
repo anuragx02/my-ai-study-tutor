@@ -133,42 +133,20 @@ class StudyRecommendation(models.Model):
         db_table = "recommendations_studyrecommendation"
 
 
-class KnowledgeDocument(models.Model):
-    class SourceType(models.TextChoices):
+class KnowledgeBase(models.Model):
+    class FileType(models.TextChoices):
         PDF = "pdf", "PDF"
-        DOCX = "docx", "DOCX"
         TXT = "txt", "TXT"
-        MD = "md", "Markdown"
-        IMAGE = "image", "Image"
 
-    class Status(models.TextChoices):
-        READY = "ready", "Ready"
-        FAILED = "failed", "Failed"
-
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="knowledge_documents")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="knowledge_bases")
     title = models.CharField(max_length=255)
-    source_type = models.CharField(max_length=20, choices=SourceType.choices)
-    tags = models.JSONField(default=list, blank=True)
+    file_type = models.CharField(max_length=10, choices=FileType.choices)
     original_filename = models.CharField(max_length=255)
-    content = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.READY)
-    error_message = models.TextField(blank=True)
+    file_text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
-        db_table = "kb_document"
-
-
-class KnowledgeChunk(models.Model):
-    document = models.ForeignKey(KnowledgeDocument, on_delete=models.CASCADE, related_name="chunks")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="knowledge_chunks")
-    chunk_index = models.PositiveIntegerField()
-    content = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["document_id", "chunk_index"]
-        db_table = "kb_chunk"
-        unique_together = ("document", "chunk_index")
+        db_table = "kb_knowledge_base"
+        verbose_name_plural = "Knowledge Bases"

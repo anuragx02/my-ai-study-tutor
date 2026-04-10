@@ -14,8 +14,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from backend.apps.core.models import (
     Course,
-    KnowledgeChunk,
-    KnowledgeDocument,
+    KnowledgeBase,
     Question,
     Quiz,
     StudyMaterial,
@@ -27,8 +26,8 @@ from backend.apps.core.permissions import IsStaffUser
 from backend.apps.core.serializers import (
     AskSerializer,
     CourseSerializer,
-    KnowledgeDocumentSerializer,
-    KnowledgeDocumentUploadSerializer,
+    KnowledgeBaseSerializer,
+    KnowledgeBaseUploadSerializer,
     LoginSerializer,
     LogoutSerializer,
     ProfileSerializer,
@@ -42,45 +41,25 @@ from backend.apps.core.serializers import (
 )
 from backend.apps.core.services.ai_service import ask_ai, generate_quiz as generate_ai_quiz
 
-from docx import Document as DocxDocument
 from pypdf import PdfReader
-from llama_index.core.node_parser import SentenceSplitter
 
 
-def _detect_source_type(filename: str) -> str:
+def _detect_file_type(filename: str) -> str:
     extension = Path(filename).suffix.lower().lstrip(".")
-    if extension in {"pdf", "docx", "txt", "md"}:
+    if extension in {"pdf", "txt"}:
         return extension
-    return "image"
+    raise ValueError("Unsupported file type. Allowed types: PDF, TXT.")
 
 
-def _extract_text_from_upload(uploaded_file, source_type: str) -> str:
-    if source_type in {"txt", "md"}:
+def _extract_text_from_file(uploaded_file, file_type: str) -> str:
+    if file_type == "txt":
         return uploaded_file.read().decode("utf-8", errors="ignore")
 
-    if source_type == "pdf":
+    if file_type == "pdf":
         reader = PdfReader(uploaded_file)
         return "\n".join((page.extract_text() or "") for page in reader.pages)
 
-    if source_type == "docx":
-        doc = DocxDocument(uploaded_file)
-        return "\n".join(paragraph.text for paragraph in doc.paragraphs)
-
-    raise ValueError("Image OCR is planned but not enabled in this phase.")
-
-
-def _chunk_text(content: str) -> list[str]:
-    splitter = SentenceSplitter(chunk_size=700, chunk_overlap=80)
-    nodes = splitter.get_nodes_from_documents([])
-    # LlamaIndex splitter expects documents/nodes; fallback to deterministic slicing for now.
-    if not nodes:
-        chunks = []
-        text = content.strip()
-        while text:
-            chunks.append(text[:700])
-            text = text[620:]
-        return chunks
-    return [node.text for node in nodes if getattr(node, "text", "").strip()]
+    raise ValueError(f"Unsupported file type: {file_type}")
 
 
 class RegisterView(generics.CreateAPIView):
@@ -273,10 +252,10 @@ class AskView(APIView):
             topic_context = f"{topic.course.title} > {topic.title}. Materials: {' | '.join(material_summaries)}"
 
         question_text = serializer.validated_data["question"]
-        kb_hits = KnowledgeChunk.objects.filter(user=request.user, content__icontains=question_text[:40]).select_related("document")[:4]
+        kb_hits = KnowledgeBase.objects.filter(user=request.user, file_text__icontains=question_text[:40])[:3]
         if kb_hits:
             kb_context = "\n".join(
-                f"[{item.document.title}#{item.chunk_index}] {item.content[:400]}"
+                f"[{item.title}] {item.file_text[:500]}"
                 for item in kb_hits
             )
             topic_context = f"{topic_context or 'knowledge base context'}\nKB:\n{kb_context}"
@@ -292,73 +271,56 @@ class AskView(APIView):
         )
 
 
-class KnowledgeDocumentListCreateView(APIView):
+class KnowledgeBaseListCreateView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
     def get(self, request):
-        documents = KnowledgeDocument.objects.filter(user=request.user)
-        return Response(KnowledgeDocumentSerializer(documents, many=True).data)
+        documents = KnowledgeBase.objects.filter(user=request.user)
+        return Response(KnowledgeBaseSerializer(documents, many=True).data)
 
     def post(self, request):
-        serializer = KnowledgeDocumentUploadSerializer(data=request.data)
+        serializer = KnowledgeBaseUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         uploaded_file = serializer.validated_data["file"]
         title = serializer.validated_data.get("title") or uploaded_file.name
-        tags = serializer.validated_data.get("tags", [])
-        source_type = _detect_source_type(uploaded_file.name)
 
         try:
-            content = _extract_text_from_upload(uploaded_file, source_type)
-        except Exception as exc:
-            document = KnowledgeDocument.objects.create(
-                user=request.user,
-                title=title,
-                source_type=source_type,
-                tags=tags,
-                original_filename=uploaded_file.name,
-                status=KnowledgeDocument.Status.FAILED,
-                error_message=str(exc),
-            )
-            return Response(KnowledgeDocumentSerializer(document).data, status=status.HTTP_400_BAD_REQUEST)
+            file_type = _detect_file_type(uploaded_file.name)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-        document = KnowledgeDocument.objects.create(
+        try:
+            file_text = _extract_text_from_file(uploaded_file, file_type)
+        except Exception as exc:
+            return Response({"detail": f"Failed to extract text: {str(exc)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        kb = KnowledgeBase.objects.create(
             user=request.user,
             title=title,
-            source_type=source_type,
-            tags=tags,
+            file_type=file_type,
             original_filename=uploaded_file.name,
-            content=content,
-            status=KnowledgeDocument.Status.READY,
+            file_text=file_text,
         )
 
-        chunks = _chunk_text(content)
-        KnowledgeChunk.objects.bulk_create(
-            [
-                KnowledgeChunk(document=document, user=request.user, chunk_index=index, content=chunk)
-                for index, chunk in enumerate(chunks)
-                if chunk.strip()
-            ]
-        )
-
-        return Response(KnowledgeDocumentSerializer(document).data, status=status.HTTP_201_CREATED)
+        return Response(KnowledgeBaseSerializer(kb).data, status=status.HTTP_201_CREATED)
 
 
-class KnowledgeDocumentDetailView(APIView):
+class KnowledgeBaseDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request, document_id):
-        document = get_object_or_404(KnowledgeDocument, id=document_id, user=request.user)
+        document = get_object_or_404(KnowledgeBase, id=document_id, user=request.user)
         document.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class KnowledgeDocumentPurgeView(APIView):
+class KnowledgeBasePurgeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request):
-        deleted_count, _ = KnowledgeDocument.objects.filter(user=request.user).delete()
+        deleted_count, _ = KnowledgeBase.objects.filter(user=request.user).delete()
         return Response({"deleted_documents": deleted_count}, status=status.HTTP_200_OK)
 
 

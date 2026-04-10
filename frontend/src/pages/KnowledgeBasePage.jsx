@@ -5,7 +5,7 @@ export default function KnowledgeBasePage() {
   const [documents, setDocuments] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const [form, setForm] = useState({ title: '', tags: '', file: null })
+  const [form, setForm] = useState({ title: '', file: null })
 
   const sortedDocs = useMemo(
     () => [...documents].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)),
@@ -40,11 +40,6 @@ export default function KnowledgeBasePage() {
       if (form.title.trim()) {
         payload.append('title', form.title.trim())
       }
-      const tags = form.tags
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean)
-      tags.forEach((tag) => payload.append('tags', tag))
 
       await api.post('/knowledge/documents', payload, {
         headers: {
@@ -52,10 +47,10 @@ export default function KnowledgeBasePage() {
         },
       })
 
-      setForm({ title: '', tags: '', file: null })
+      setForm({ title: '', file: null })
       await loadDocuments()
     } catch (uploadError) {
-      const message = uploadError.response?.data?.error_message || 'Upload failed. Check file type and try again.'
+      const message = uploadError.response?.data?.detail || 'Upload failed. Check file type and try again.'
       setError(message)
     } finally {
       setBusy(false)
@@ -89,7 +84,7 @@ export default function KnowledgeBasePage() {
   return (
     <section className="card">
       <h2 className="page-title">Knowledge Base</h2>
-      <p className="muted">Upload private study material to power AI tutoring and quizzes.</p>
+      <p className="muted">Upload PDF or TXT files to power AI tutoring and quizzes.</p>
 
       <form className="card" style={{ marginTop: 20, display: 'grid', gap: 12 }} onSubmit={handleUpload}>
         <input
@@ -100,14 +95,8 @@ export default function KnowledgeBasePage() {
         />
         <input
           className="input"
-          placeholder="Tags (comma separated)"
-          value={form.tags}
-          onChange={(event) => setForm((current) => ({ ...current, tags: event.target.value }))}
-        />
-        <input
-          className="input"
           type="file"
-          accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg"
+          accept=".pdf,.txt"
           onChange={(event) => setForm((current) => ({ ...current, file: event.target.files?.[0] || null }))}
         />
         <button className="button" type="submit" disabled={busy}>
@@ -128,10 +117,7 @@ export default function KnowledgeBasePage() {
         {sortedDocs.map((doc) => (
           <article key={doc.id} className="card">
             <h3>{doc.title}</h3>
-            <div className="muted">{doc.source_type.toUpperCase()} · {doc.chunk_count} chunks</div>
-            <div className="muted">Status: {doc.status}</div>
-            {doc.tags?.length ? <div className="muted">Tags: {doc.tags.join(', ')}</div> : null}
-            {doc.error_message ? <p style={{ color: '#ff8b92' }}>{doc.error_message}</p> : null}
+            <div className="muted">{doc.file_type.toUpperCase()} · {new Date(doc.created_at).toLocaleDateString()}</div>
             <button className="button" type="button" onClick={() => deleteDocument(doc.id)} disabled={busy}>
               Delete
             </button>
