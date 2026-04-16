@@ -77,7 +77,7 @@ class UserPerformanceSerializer(serializers.ModelSerializer):
 
 
 class QuizGenerateSerializer(serializers.Serializer):
-    topic_id = serializers.IntegerField(required=True)
+    focus = serializers.CharField(max_length=255, required=False, allow_blank=True)
     difficulty = serializers.ChoiceField(choices=Quiz.Difficulty.choices)
     total_questions = serializers.IntegerField(min_value=1, max_value=20, default=5)
 
@@ -108,7 +108,6 @@ class StudyRecommendationSerializer(serializers.ModelSerializer):
 
 class AskSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=2000)
-    topic_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class KnowledgeBaseUploadSerializer(serializers.Serializer):

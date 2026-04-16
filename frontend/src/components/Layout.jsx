@@ -3,12 +3,10 @@ import { useAuth } from '../context/AuthContext'
 
 const navItems = [
   { to: '/', label: 'Dashboard' },
-  { to: '/courses', label: 'Courses' },
-  { to: '/materials', label: 'Study Materials' },
+  { to: '/materials', label: 'Study Material' },
   { to: '/chat', label: 'AI Chat Tutor' },
-  { to: '/quiz', label: 'Quiz Interface' },
-  { to: '/analytics', label: 'Analytics' },
-  { to: '/recommendations', label: 'Recommendations' },
+  { to: '/quiz', label: 'Quiz' },
+  { to: '/insights', label: 'Insights' },
 ]
 
 export default function Layout() {

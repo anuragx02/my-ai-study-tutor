@@ -1,38 +1,31 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import QuizCard from '../components/QuizCard'
 import api from '../services/api'
 
 export default function QuizPage() {
-  const [courses, setCourses] = useState([])
-  const [topicId, setTopicId] = useState('')
+  const [focus, setFocus] = useState('')
   const [difficulty, setDifficulty] = useState('easy')
   const [totalQuestions, setTotalQuestions] = useState(5)
   const [quiz, setQuiz] = useState(null)
   const [answers, setAnswers] = useState({})
   const [result, setResult] = useState(null)
-
-  const topics = useMemo(() => courses.flatMap((course) => course.topics.map((topic) => ({ ...topic, courseTitle: course.title }))), [courses])
-
-  useEffect(() => {
-    api.get('/courses/').then(({ data }) => {
-      setCourses(data)
-      if (!topicId && data[0]?.topics?.[0]?.id) {
-        setTopicId(String(data[0].topics[0].id))
-      }
-    }).catch(() => {})
-  }, [])
+  const [error, setError] = useState('')
 
   async function generateQuiz(event) {
     event.preventDefault()
-    if (!topicId) return
+    setError('')
     setResult(null)
-    const { data } = await api.post('/quiz/generate', {
-      topic_id: Number(topicId),
-      difficulty,
-      total_questions: Number(totalQuestions),
-    })
-    setQuiz(data)
-    setAnswers({})
+    try {
+      const { data } = await api.post('/quiz/generate', {
+        focus,
+        difficulty,
+        total_questions: Number(totalQuestions),
+      })
+      setQuiz(data)
+      setAnswers({})
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || 'Unable to generate quiz right now.')
+    }
   }
 
   async function submitQuiz() {
@@ -51,12 +44,15 @@ export default function QuizPage() {
   return (
     <section className="card">
       <h2 className="page-title">Quiz Interface</h2>
-      <p className="muted">Generate topic-based quizzes, answer them, and submit for scoring.</p>
+      <p className="muted">Generate quizzes from your uploaded study material and submit for scoring.</p>
 
       <form className="feature-grid" style={{ marginTop: 20 }} onSubmit={generateQuiz}>
-        <select className="select" value={topicId} onChange={(event) => setTopicId(event.target.value)}>
-          {topics.map((topic) => <option key={topic.id} value={topic.id}>{topic.courseTitle} - {topic.title}</option>)}
-        </select>
+        <input
+          className="input"
+          placeholder="Quiz focus (optional, e.g. thermodynamics, calculus, data structures)"
+          value={focus}
+          onChange={(event) => setFocus(event.target.value)}
+        />
         <select className="select" value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
           <option value="easy">Easy</option>
           <option value="medium">Medium</option>
@@ -65,6 +61,8 @@ export default function QuizPage() {
         <input className="input" type="number" min="1" max="20" value={totalQuestions} onChange={(event) => setTotalQuestions(event.target.value)} />
         <button className="button" type="submit">Generate quiz</button>
       </form>
+
+      {error ? <div style={{ color: '#ff8b92', marginTop: 12 }}>{error}</div> : null}
 
       {quiz ? (
         <div style={{ marginTop: 24 }}>

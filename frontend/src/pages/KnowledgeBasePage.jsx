@@ -83,8 +83,8 @@ export default function KnowledgeBasePage() {
 
   return (
     <section className="card">
-      <h2 className="page-title">Knowledge Base</h2>
-      <p className="muted">Upload PDF or TXT files to power AI tutoring and quizzes.</p>
+      <h2 className="page-title">Study Material</h2>
+      <p className="muted">Upload PDF or TXT notes, guides, and papers for chat and quizzes.</p>
 
       <form className="card" style={{ marginTop: 20, display: 'grid', gap: 12 }} onSubmit={handleUpload}>
         <input
@@ -100,12 +100,12 @@ export default function KnowledgeBasePage() {
           onChange={(event) => setForm((current) => ({ ...current, file: event.target.files?.[0] || null }))}
         />
         <button className="button" type="submit" disabled={busy}>
-          {busy ? 'Processing...' : 'Upload to KB'}
+          {busy ? 'Processing...' : 'Upload Material'}
         </button>
       </form>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
-        <h3 style={{ margin: 0 }}>My Documents</h3>
+        <h3 style={{ margin: 0 }}>My Materials</h3>
         <button className="button" type="button" disabled={busy || !documents.length} onClick={deleteAllDocuments}>
           Delete All
         </button>

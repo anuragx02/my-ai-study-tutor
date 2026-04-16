@@ -7,11 +7,9 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import ChatTutorPage from './pages/ChatTutorPage'
-import CoursesPage from './pages/CoursesPage'
-import MaterialsPage from './pages/MaterialsPage'
+import KnowledgeBasePage from './pages/KnowledgeBasePage'
 import QuizPage from './pages/QuizPage'
-import AnalyticsPage from './pages/AnalyticsPage'
-import RecommendationsPage from './pages/RecommendationsPage'
+import InsightsPage from './pages/InsightsPage'
 
 export default function App() {
   return (
@@ -24,12 +22,13 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<DashboardPage />} />
-            <Route path="/courses" element={<CoursesPage />} />
-            <Route path="/materials" element={<MaterialsPage />} />
+            <Route path="/materials" element={<KnowledgeBasePage />} />
             <Route path="/chat" element={<ChatTutorPage />} />
             <Route path="/quiz" element={<QuizPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/recommendations" element={<RecommendationsPage />} />
+            <Route path="/insights" element={<InsightsPage />} />
+            <Route path="/analytics" element={<Navigate to="/insights" replace />} />
+            <Route path="/recommendations" element={<Navigate to="/insights" replace />} />
+            <Route path="/courses" element={<Navigate to="/materials" replace />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

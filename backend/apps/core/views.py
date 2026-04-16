@@ -18,7 +18,6 @@ from backend.apps.core.models import (
     Question,
     Quiz,
     StudyMaterial,
-    StudyRecommendation,
     Topic,
     UserPerformance,
 )
@@ -162,13 +161,33 @@ class QuizGenerateView(APIView):
     def post(self, request):
         serializer = QuizGenerateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        topic = get_object_or_404(Topic.objects.select_related("course"), pk=serializer.validated_data["topic_id"])
         difficulty = serializer.validated_data["difficulty"]
         total_questions = serializer.validated_data["total_questions"]
-        payload = generate_ai_quiz(topic=topic.title, difficulty=difficulty, total_questions=total_questions)
+
+        focus = serializer.validated_data.get("focus", "").strip()
+        kb_seed = " ".join(
+            KnowledgeBase.objects.filter(user=request.user).values_list("title", flat=True)[:5]
+        )
+        quiz_topic = focus or kb_seed or "General Study"
+        payload = generate_ai_quiz(topic=quiz_topic, difficulty=difficulty, total_questions=total_questions)
+
+        fallback_topic = Topic.objects.order_by("id").first()
+        if not fallback_topic:
+            fallback_course, _ = Course.objects.get_or_create(
+                title="General Study",
+                defaults={
+                    "description": "Auto-created course for KB-first quiz generation.",
+                    "created_by": request.user,
+                },
+            )
+            fallback_topic, _ = Topic.objects.get_or_create(
+                course=fallback_course,
+                title="General Practice",
+                defaults={"difficulty": Topic.Difficulty.EASY},
+            )
 
         quiz = Quiz.objects.create(
-            topic=topic,
+            topic=fallback_topic,
             difficulty=difficulty,
             total_questions=total_questions,
             created_by=request.user,
@@ -245,11 +264,6 @@ class AskView(APIView):
         serializer = AskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         topic_context = None
-        topic_id = serializer.validated_data.get("topic_id")
-        if topic_id:
-            topic = get_object_or_404(Topic.objects.select_related("course").prefetch_related("materials"), pk=topic_id)
-            material_summaries = [material.summary or material.title for material in topic.materials.all()[:5]]
-            topic_context = f"{topic.course.title} > {topic.title}. Materials: {' | '.join(material_summaries)}"
 
         question_text = serializer.validated_data["question"]
         kb_hits = KnowledgeBase.objects.filter(user=request.user, file_text__icontains=question_text[:40])[:3]
@@ -353,28 +367,41 @@ class RecommendationView(APIView):
         weak_topics = []
         for performance in performances:
             if performance.score < 70:
-                weak_topics.append(performance.quiz.topic)
+                weak_topics.append(performance.quiz.topic.title)
 
-        if not weak_topics:
-            weak_topics = list(Topic.objects.order_by("title")[:3])
-
-        recommendations = []
-        for topic in weak_topics[:5]:
-            recommendation, _ = StudyRecommendation.objects.get_or_create(
-                user=request.user,
-                topic=topic,
-                defaults={
-                    "suggested_material": f"Review {topic.title} lessons and complete practice questions.",
-                    "date_generated": timezone.now(),
-                },
-            )
-            recommendations.append(
+        if weak_topics:
+            selected_topics = list(dict.fromkeys(weak_topics))[:5]
+            items = [
                 {
-                    "id": recommendation.id,
-                    "topic": topic.title,
-                    "suggested_material": recommendation.suggested_material,
-                    "date_generated": recommendation.date_generated.isoformat().replace("+00:00", "Z"),
+                    "id": index + 1,
+                    "topic": topic_title,
+                    "suggested_material": f"Revisit your uploaded study material for {topic_title} and retake a quiz.",
+                    "date_generated": timezone.now().isoformat().replace("+00:00", "Z"),
                 }
-            )
+                for index, topic_title in enumerate(selected_topics)
+            ]
+            return Response(items)
 
-        return Response(recommendations)
+        kb_titles = list(KnowledgeBase.objects.filter(user=request.user).values_list("title", flat=True)[:3])
+        if kb_titles:
+            items = [
+                {
+                    "id": index + 1,
+                    "topic": "Knowledge Base",
+                    "suggested_material": f"Review {title} and ask 3 tutor questions to reinforce retention.",
+                    "date_generated": timezone.now().isoformat().replace("+00:00", "Z"),
+                }
+                for index, title in enumerate(kb_titles)
+            ]
+            return Response(items)
+
+        return Response(
+            [
+                {
+                    "id": 1,
+                    "topic": "Getting Started",
+                    "suggested_material": "Upload at least one PDF or TXT file to generate personalized recommendations.",
+                    "date_generated": timezone.now().isoformat().replace("+00:00", "Z"),
+                }
+            ]
+        )
