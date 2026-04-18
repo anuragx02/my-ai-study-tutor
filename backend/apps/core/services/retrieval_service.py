@@ -87,16 +87,21 @@ def _tavily_request(url: str, payload: dict, api_key: str) -> list[dict]:
     ]
 
     for variant in request_variants:
-        response = requests.post(
-            url,
-            json=variant["json"],
-            headers=variant["headers"],
-            timeout=15,
-        )
-        if response.status_code >= 400:
+        try:
+            response = requests.post(
+                url,
+                json=variant["json"],
+                headers=variant["headers"],
+                timeout=(5, 10),
+            )
+            if response.status_code >= 400:
+                continue
+            data = response.json() or {}
+            return data.get("results", [])
+        except requests.RequestException:
             continue
-        data = response.json() or {}
-        return data.get("results", [])
+        except ValueError:
+            continue
 
     return []
 
@@ -125,8 +130,8 @@ def _fetch_web_results(question: str, max_results: int = 3) -> list[dict]:
         payload = {
             "query": question,
             "max_results": max_results,
-            "search_depth": "advanced",
-            "include_answer": True,
+            "search_depth": "basic",
+            "include_answer": False,
             "include_raw_content": False,
         }
         results = _tavily_request(url, payload, api_key)
