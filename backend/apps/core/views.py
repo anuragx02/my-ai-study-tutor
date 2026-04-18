@@ -61,6 +61,41 @@ def _extract_text_from_file(uploaded_file, file_type: str) -> str:
     raise ValueError(f"Unsupported file type: {file_type}")
 
 
+def _normalize_quiz_option(value: str | None) -> str | None:
+    if not value:
+        return None
+
+    normalized = str(value).strip().upper()
+    if normalized in {"A", "B", "C", "D"}:
+        return normalized
+
+    compact = normalized.replace(" ", "")
+    mappings = {
+        "OPTIONA": "A",
+        "OPTIONB": "B",
+        "OPTIONC": "C",
+        "OPTIOND": "D",
+        "A)": "A",
+        "B)": "B",
+        "C)": "C",
+        "D)": "D",
+        "A.": "A",
+        "B.": "B",
+        "C.": "C",
+        "D.": "D",
+    }
+    if compact in mappings:
+        return mappings[compact]
+
+    if compact.startswith("OPTION") and len(compact) > 6 and compact[6] in {"A", "B", "C", "D"}:
+        return compact[6]
+
+    if compact and compact[0] in {"A", "B", "C", "D"}:
+        return compact[0]
+
+    return None
+
+
 class RegisterView(generics.CreateAPIView):
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
@@ -194,7 +229,16 @@ class QuizGenerateView(APIView):
         )
 
         for item in payload["questions"]:
-            Question.objects.create(quiz=quiz, **item)
+            normalized_correct_option = _normalize_quiz_option(item.get("correct_option")) or "A"
+            Question.objects.create(
+                quiz=quiz,
+                question_text=item["question_text"],
+                option_a=item["option_a"],
+                option_b=item["option_b"],
+                option_c=item["option_c"],
+                option_d=item["option_d"],
+                correct_option=normalized_correct_option,
+            )
 
         return Response(QuizSerializer(quiz).data, status=status.HTTP_201_CREATED)
 
@@ -210,7 +254,7 @@ class QuizSubmitView(generics.CreateAPIView):
         quiz = get_object_or_404(Quiz.objects.prefetch_related("questions"), pk=serializer.validated_data["quiz_id"])
         questions = list(quiz.questions.all())
         answer_map = {
-            answer["question_id"]: answer["selected_option"]
+            answer["question_id"]: _normalize_quiz_option(answer["selected_option"])
             for answer in serializer.validated_data["answers"]
         }
 
@@ -218,7 +262,8 @@ class QuizSubmitView(generics.CreateAPIView):
         incorrect_questions = []
         for question in questions:
             selected_option = answer_map.get(question.id)
-            if selected_option == question.correct_option:
+            correct_option = _normalize_quiz_option(question.correct_option)
+            if selected_option and correct_option and selected_option == correct_option:
                 correct_count += 1
             else:
                 incorrect_questions.append(
