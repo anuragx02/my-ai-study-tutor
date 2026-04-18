@@ -2,11 +2,11 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: 'DB' },
-  { to: '/materials', label: 'Study Material', icon: 'SM' },
-  { to: '/chat', label: 'AI Chat Tutor', icon: 'AI' },
-  { to: '/quiz', label: 'Quiz', icon: 'QZ' },
-  { to: '/insights', label: 'Insights', icon: 'IN' },
+  { to: '/', label: 'Dashboard' },
+  { to: '/materials', label: 'Study Material' },
+  { to: '/chat', label: 'AI Chat Tutor' },
+  { to: '/quiz', label: 'Quiz' },
+  { to: '/insights', label: 'Insights' },
 ]
 
 export default function Layout() {
@@ -22,7 +22,6 @@ export default function Layout() {
         <nav className="nav-list nav-list--horizontal">
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              <span className="nav-link__icon" aria-hidden="true">{item.icon}</span>
               <span>{item.label}</span>
             </NavLink>
           ))}
