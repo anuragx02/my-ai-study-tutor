@@ -158,8 +158,8 @@ export default function ChatTutorPage() {
                       cursor: 'pointer',
                     }}
                   >
-                    <div style={{ fontWeight: 600 }}>{session.title}</div>
-                    <div className="muted" style={{ marginTop: 4, fontSize: 13 }}>{session.last_message_preview || 'No messages yet'}</div>
+                    <div className="chat-session-title">{session.title}</div>
+                    <div className="muted chat-session-preview" style={{ marginTop: 4, fontSize: 13 }}>{session.last_message_preview || 'No messages yet'}</div>
                   </button>
                   <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
                     <button

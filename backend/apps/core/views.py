@@ -42,7 +42,7 @@ from backend.apps.core.serializers import (
     UserPerformanceSerializer,
     UserSerializer,
 )
-from backend.apps.core.services.ai_service import ask_ai, generate_quiz as generate_ai_quiz
+from backend.apps.core.services.ai_service import ask_ai, generate_chat_title, generate_quiz as generate_ai_quiz
 
 from pypdf import PdfReader
 
@@ -322,7 +322,7 @@ class AskView(APIView):
         else:
             session = ChatSession.objects.create(
                 user=request.user,
-                title=question_text.strip()[:80] or "New Chat",
+                title=generate_chat_title(question_text),
             )
 
         ChatMessage.objects.create(

@@ -148,6 +148,22 @@ button, input, textarea, select { font: inherit; }
   overflow: auto;
 }
 
+.chat-session-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-session-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .message {
   padding: 14px 16px;
   border-radius: 18px;
