@@ -2,11 +2,11 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const navItems = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/materials', label: 'Study Material' },
-  { to: '/chat', label: 'AI Chat Tutor' },
-  { to: '/quiz', label: 'Quiz' },
-  { to: '/insights', label: 'Insights' },
+  { to: '/', label: 'Dashboard', icon: 'DB' },
+  { to: '/materials', label: 'Study Material', icon: 'SM' },
+  { to: '/chat', label: 'AI Chat Tutor', icon: 'AI' },
+  { to: '/quiz', label: 'Quiz', icon: 'QZ' },
+  { to: '/insights', label: 'Insights', icon: 'IN' },
 ]
 
 export default function Layout() {
@@ -14,23 +14,26 @@ export default function Layout() {
 
   return (
     <div className="shell">
-      <aside className="sidebar">
+      <header className="topbar">
         <div className="brand">
           <h1>AI Study Tutor</h1>
           <span className="muted">Learn, quiz, and improve</span>
-          <span className="muted">{user?.name}</span>
         </div>
-        <nav className="nav-list">
+        <nav className="nav-list nav-list--horizontal">
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-              {item.label}
+              <span className="nav-link__icon" aria-hidden="true">{item.icon}</span>
+              <span>{item.label}</span>
             </NavLink>
           ))}
         </nav>
-        <button className="button" style={{ marginTop: 20, width: '100%' }} onClick={logout} type="button">
-          Logout
-        </button>
-      </aside>
+        <div className="topbar-actions">
+          <span className="muted">{user?.name}</span>
+          <button className="button" onClick={logout} type="button">
+            Logout
+          </button>
+        </div>
+      </header>
       <main className="main">
         <Outlet />
       </main>
