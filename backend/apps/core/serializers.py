@@ -116,7 +116,17 @@ class AskSerializer(serializers.Serializer):
 class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
-        fields = ["id", "role", "text", "examples", "related_topics", "created_at"]
+        fields = [
+            "id",
+            "role",
+            "text",
+            "examples",
+            "related_topics",
+            "citations",
+            "retrieval_confidence",
+            "source_type",
+            "created_at",
+        ]
 
 
 class ChatSessionSerializer(serializers.ModelSerializer):

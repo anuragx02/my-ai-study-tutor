@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../services/api'
+import CitationCard from '../components/CitationCard'
 
 const starterMessages = [
   { role: 'assistant', text: 'Ask me anything about a topic and I will explain it step by step.' },
@@ -45,6 +46,9 @@ export default function ChatTutorPage() {
         text: message.text,
         examples: message.examples,
         related_topics: message.related_topics,
+        citations: message.citations || [],
+        retrieval_confidence: message.retrieval_confidence,
+        source_type: message.source_type,
       }))
       setMessages(serverMessages.length ? serverMessages : starterMessages)
     } catch {
@@ -182,11 +186,32 @@ export default function ChatTutorPage() {
             {messages.map((message, index) => (
               <div key={index} className={`message ${message.role}`}>
                 <div>{message.text}</div>
+                {message.role === 'assistant' && message.source_type === 'web' ? (
+                  <div className="fallback-notice">Low KB confidence: response includes web fallback sources.</div>
+                ) : null}
+                {message.role === 'assistant' && message.source_type === 'mixed' ? (
+                  <div className="fallback-notice">Mixed sources used: knowledge base and web results.</div>
+                ) : null}
+                {message.role === 'assistant' && Number.isFinite(Number(message.retrieval_confidence)) ? (
+                  <div className="confidence-note muted">
+                    Retrieval confidence: {(Number(message.retrieval_confidence) * 100).toFixed(0)}%
+                  </div>
+                ) : null}
+                {message.role === 'assistant' && message.citations?.length ? (
+                  <div className="citations-block">
+                    <strong>Sources</strong>
+                    <div className="citations-grid">
+                      {message.citations.map((citation, citationIndex) => (
+                        <CitationCard key={`${index}-${citationIndex}`} citation={citation} />
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 {message.examples?.length ? (
                   <div style={{ marginTop: 8 }}>
                     <strong>Examples</strong>
                     <ul>
-                      {message.examples.map((item) => <li key={item}>{item}</li>)}
+                      {message.examples.map((item, exampleIndex) => <li key={`${index}-example-${exampleIndex}`}>{item}</li>)}
                     </ul>
                   </div>
                 ) : null}

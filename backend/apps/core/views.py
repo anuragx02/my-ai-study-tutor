@@ -1,6 +1,7 @@
 from collections import Counter
 from pathlib import Path
 
+from django.conf import settings
 from django.db.models import Avg, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -43,6 +44,8 @@ from backend.apps.core.serializers import (
     UserSerializer,
 )
 from backend.apps.core.services.ai_service import ask_ai, generate_chat_title, generate_quiz as generate_ai_quiz
+from backend.apps.core.services.chunk_service import sync_document_chunks
+from backend.apps.core.services.retrieval_service import retrieve_context
 
 from pypdf import PdfReader
 
@@ -312,8 +315,6 @@ class AskView(APIView):
     def post(self, request):
         serializer = AskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        topic_context = None
-
         question_text = serializer.validated_data["question"]
         session_id = serializer.validated_data.get("session_id")
 
@@ -331,27 +332,27 @@ class AskView(APIView):
             text=question_text,
         )
 
-        kb_hits = KnowledgeBase.objects.filter(user=request.user, file_text__icontains=question_text[:40])[:3]
-        if kb_hits:
-            kb_context = "\n".join(
-                f"[{item.title}] {item.file_text[:500]}"
-                for item in kb_hits
-            )
-            topic_context = f"{topic_context or 'knowledge base context'}\nKB:\n{kb_context}"
-
-        result = ask_ai(question_text, topic_context=topic_context)
+        retrieval = retrieve_context(question=question_text, user=request.user)
+        result = ask_ai(question_text, topic_context=retrieval.context)
         ChatMessage.objects.create(
             session=session,
             role=ChatMessage.Role.ASSISTANT,
             text=result.answer,
             examples=result.examples,
             related_topics=result.related_topics,
+            citations=retrieval.citations,
+            retrieval_confidence=retrieval.confidence,
+            source_type=retrieval.source_type,
         )
         return Response(
             {
                 "answer": result.answer,
                 "examples": result.examples,
                 "related_topics": result.related_topics,
+                "citations": retrieval.citations,
+                "retrieval_confidence": retrieval.confidence,
+                "source_type": retrieval.source_type,
+                "fallback_used": retrieval.fallback_used,
                 "session_id": session.id,
             },
             status=status.HTTP_200_OK,
@@ -416,6 +417,12 @@ class KnowledgeBaseListCreateView(APIView):
             file_type=file_type,
             original_filename=uploaded_file.name,
             file_text=file_text,
+        )
+
+        sync_document_chunks(
+            kb,
+            chunk_size_chars=getattr(settings, "KB_CHUNK_SIZE_CHARS", 1200),
+            overlap_chars=getattr(settings, "KB_CHUNK_OVERLAP_CHARS", 200),
         )
 
         return Response(KnowledgeBaseSerializer(kb).data, status=status.HTTP_201_CREATED)

@@ -149,3 +149,11 @@ SIMPLE_JWT = {
 GROQ_API_KEY = env("GROQ_API_KEY")
 GROQ_API_BASE = env("GROQ_API_BASE")
 GROQ_MODEL = env("GROQ_MODEL")
+
+KB_CHUNK_SIZE_CHARS = env.int("KB_CHUNK_SIZE_CHARS", default=1200)
+KB_CHUNK_OVERLAP_CHARS = env.int("KB_CHUNK_OVERLAP_CHARS", default=200)
+KB_TOP_K = env.int("KB_TOP_K", default=4)
+KB_CONFIDENCE_THRESHOLD = env.float("KB_CONFIDENCE_THRESHOLD", default=0.45)
+WEB_FALLBACK_ENABLED = env.bool("WEB_FALLBACK_ENABLED", default=True)
+TAVILY_API_KEY = env("TAVILY_API_KEY", default="")
+TAVILY_API_BASE = env("TAVILY_API_BASE", default="https://api.tavily.com")
