@@ -36,6 +36,17 @@ def _strip_markdown_json(content: str) -> str:
 
 def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = True) -> AIResponse:
     prompt_context = topic_context or "general academic support"
+
+    if topic_context and "Live web data is required" in topic_context:
+        return AIResponse(
+            answer=(
+                "I could not fetch live web data right now for that current-events query. "
+                "Please retry in a moment, and I will check the latest sources."
+            ),
+            examples=[],
+            related_topics=[],
+        )
+
     client = Groq(api_key=settings.GROQ_API_KEY)
 
     if is_academic:

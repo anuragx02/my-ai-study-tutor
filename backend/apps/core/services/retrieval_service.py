@@ -125,8 +125,8 @@ def _fetch_web_results(question: str, max_results: int = 3) -> list[dict]:
         payload = {
             "query": question,
             "max_results": max_results,
-            "search_depth": "basic",
-            "include_answer": False,
+            "search_depth": "advanced",
+            "include_answer": True,
             "include_raw_content": False,
         }
         results = _tavily_request(url, payload, api_key)
@@ -222,6 +222,23 @@ def retrieve_context(question: str, user: User) -> RetrievalPayload:
         kb_citations = []
         kb_context = ""
         confidence = max(confidence, 0.7)
+
+    # For live/current queries with no web results, do not fall back to random KB chunks.
+    if force_web and not web_citations:
+        kb_citations = []
+        kb_context = ""
+        source_type = "web"
+        context = (
+            "Live web data is required for this question, but web sources were not available at the moment. "
+            "Respond clearly that current information could not be retrieved and ask the user to retry."
+        )
+        return RetrievalPayload(
+            context=context,
+            citations=[],
+            confidence=0.0,
+            source_type=source_type,
+            fallback_used=False,
+        )
 
     citations = kb_citations + web_citations
 
