@@ -387,8 +387,12 @@ class ProgressView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        performances = UserPerformance.objects.select_related("quiz__topic").filter(user=request.user)
-        score_values = list(performances.values_list("score", flat=True))
+        performances = (
+            UserPerformance.objects.select_related("quiz__topic")
+            .filter(user=request.user)
+            .order_by("attempt_date")
+        )
+        score_values = [round(float(score), 2) for score in performances.values_list("score", flat=True)]
         weak_topics_counter = Counter()
         for performance in performances:
             if performance.score < 70:
