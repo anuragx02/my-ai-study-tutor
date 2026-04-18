@@ -199,7 +199,9 @@ export default function ChatTutorPage() {
                     Retrieval confidence: {(Number(message.retrieval_confidence) * 100).toFixed(0)}%
                   </div>
                 ) : null}
-                {message.role === 'assistant' && Number(message.retrieval_confidence) >= CITATION_CONFIDENCE_MIN && message.citations?.length ? (
+                {message.role === 'assistant' && message.citations?.length && (
+                  Number(message.retrieval_confidence) >= CITATION_CONFIDENCE_MIN || message.source_type === 'web' || message.source_type === 'mixed'
+                ) ? (
                   <div className="citations-block">
                     <strong>Sources</strong>
                     <div className="citations-grid">

@@ -55,6 +55,52 @@ def _is_probably_academic(question: str, terms: list[str]) -> bool:
     return True
 
 
+def _is_live_info_query(question: str) -> bool:
+    lowered = (question or "").lower()
+    live_markers = {
+        "today", "now", "current", "latest", "breaking", "news", "headline", "score", "match",
+        "won", "price", "weather", "date", "time", "rate", "result", "update",
+    }
+    return any(marker in lowered for marker in live_markers)
+
+
+def _tavily_request(url: str, payload: dict, api_key: str) -> list[dict]:
+    request_variants = [
+        {
+            "headers": {"Content-Type": "application/json"},
+            "json": {**payload, "api_key": api_key},
+        },
+        {
+            "headers": {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+            },
+            "json": payload,
+        },
+        {
+            "headers": {
+                "Content-Type": "application/json",
+                "X-API-Key": api_key,
+            },
+            "json": payload,
+        },
+    ]
+
+    for variant in request_variants:
+        response = requests.post(
+            url,
+            json=variant["json"],
+            headers=variant["headers"],
+            timeout=15,
+        )
+        if response.status_code >= 400:
+            continue
+        data = response.json() or {}
+        return data.get("results", [])
+
+    return []
+
+
 def _score_chunk(chunk_text: str, terms: list[str]) -> float:
     if not terms:
         return 0.0
@@ -76,21 +122,14 @@ def _fetch_web_results(question: str, max_results: int = 3) -> list[dict]:
     url = f"{base_url.rstrip('/')}/search"
 
     try:
-        response = requests.post(
-            url,
-            json={
-                "api_key": api_key,
-                "query": question,
-                "max_results": max_results,
-                "search_depth": "basic",
-                "include_answer": False,
-                "include_raw_content": False,
-            },
-            timeout=15,
-        )
-        response.raise_for_status()
-        data = response.json() or {}
-        results = data.get("results", [])
+        payload = {
+            "query": question,
+            "max_results": max_results,
+            "search_depth": "basic",
+            "include_answer": False,
+            "include_raw_content": False,
+        }
+        results = _tavily_request(url, payload, api_key)
         normalized: list[dict] = []
         for item in results[:max_results]:
             normalized.append(
@@ -98,7 +137,7 @@ def _fetch_web_results(question: str, max_results: int = 3) -> list[dict]:
                     "title": item.get("title") or "Web Source",
                     "snippet": (item.get("content") or "")[:240],
                     "url": item.get("url") or "",
-                    "score": 0.3,
+                    "score": float(item.get("score") or 0.6),
                     "source": "web",
                 }
             )
@@ -121,6 +160,8 @@ def _ensure_user_chunks(user: User) -> None:
 
 def retrieve_context(question: str, user: User) -> RetrievalPayload:
     terms = _question_terms(question)
+    force_web = _is_live_info_query(question)
+
     if not _is_probably_academic(question, terms):
         return RetrievalPayload(
             context=None,
@@ -168,13 +209,19 @@ def retrieve_context(question: str, user: User) -> RetrievalPayload:
     fallback_used = False
     web_citations: list[dict] = []
     web_context = ""
-    if confidence < threshold:
+    if force_web or confidence < threshold:
         web_citations = _fetch_web_results(question, max_results=3)
         fallback_used = bool(web_citations)
         web_context = "\n\n".join(
             f"[WEB:{item['title']}] {item['snippet']}"
             for item in web_citations
         )
+
+    # For live/current queries, prefer web evidence over weak KB snippets.
+    if force_web and web_citations:
+        kb_citations = []
+        kb_context = ""
+        confidence = max(confidence, 0.7)
 
     citations = kb_citations + web_citations
 
