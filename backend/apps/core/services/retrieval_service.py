@@ -167,6 +167,32 @@ def retrieve_context(question: str, user: User) -> RetrievalPayload:
     terms = _question_terms(question)
     force_web = _is_live_info_query(question)
 
+    if force_web:
+        web_citations = _fetch_web_results(question, max_results=3)
+        if web_citations:
+            web_context = "\n\n".join(
+                f"[WEB:{item['title']}] {item['snippet']}"
+                for item in web_citations
+            )
+            return RetrievalPayload(
+                context=web_context,
+                citations=web_citations,
+                confidence=0.8,
+                source_type="web",
+                fallback_used=True,
+            )
+
+        return RetrievalPayload(
+            context=(
+                "Live web data is required for this question, but web sources were not available at the moment. "
+                "Respond clearly that current information could not be retrieved and ask the user to retry."
+            ),
+            citations=[],
+            confidence=0.0,
+            source_type="web",
+            fallback_used=False,
+        )
+
     if not _is_probably_academic(question, terms):
         return RetrievalPayload(
             context=None,
@@ -220,29 +246,6 @@ def retrieve_context(question: str, user: User) -> RetrievalPayload:
         web_context = "\n\n".join(
             f"[WEB:{item['title']}] {item['snippet']}"
             for item in web_citations
-        )
-
-    # For live/current queries, prefer web evidence over weak KB snippets.
-    if force_web and web_citations:
-        kb_citations = []
-        kb_context = ""
-        confidence = max(confidence, 0.7)
-
-    # For live/current queries with no web results, do not fall back to random KB chunks.
-    if force_web and not web_citations:
-        kb_citations = []
-        kb_context = ""
-        source_type = "web"
-        context = (
-            "Live web data is required for this question, but web sources were not available at the moment. "
-            "Respond clearly that current information could not be retrieved and ask the user to retry."
-        )
-        return RetrievalPayload(
-            context=context,
-            citations=[],
-            confidence=0.0,
-            source_type=source_type,
-            fallback_used=False,
         )
 
     citations = kb_citations + web_citations
