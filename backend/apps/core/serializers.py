@@ -3,6 +3,8 @@ from django.contrib.auth import authenticate
 from django.contrib.auth import get_user_model
 
 from backend.apps.core.models import (
+    ChatMessage,
+    ChatSession,
     Course,
     KnowledgeBase,
     Question,
@@ -108,6 +110,28 @@ class StudyRecommendationSerializer(serializers.ModelSerializer):
 
 class AskSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=2000)
+    session_id = serializers.IntegerField(required=False)
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatMessage
+        fields = ["id", "role", "text", "examples", "related_topics", "created_at"]
+
+
+class ChatSessionSerializer(serializers.ModelSerializer):
+    last_message_preview = serializers.SerializerMethodField()
+    message_count = serializers.IntegerField(source="messages.count", read_only=True)
+
+    class Meta:
+        model = ChatSession
+        fields = ["id", "title", "created_at", "updated_at", "message_count", "last_message_preview"]
+
+    def get_last_message_preview(self, obj):
+        last_message = obj.messages.order_by("-created_at", "-id").first()
+        if not last_message:
+            return ""
+        return (last_message.text or "")[:120]
 
 
 class KnowledgeBaseUploadSerializer(serializers.Serializer):

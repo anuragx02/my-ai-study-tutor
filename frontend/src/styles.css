@@ -108,6 +108,17 @@ button, input, textarea, select { font: inherit; }
   gap: 14px;
 }
 
+.chat-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+}
+
+.chat-sessions {
+  max-height: 560px;
+  overflow: auto;
+}
+
 .message {
   padding: 14px 16px;
   border-radius: 18px;
@@ -181,6 +192,8 @@ button, input, textarea, select { font: inherit; }
 @media (max-width: 960px) {
   .shell, .hero { grid-template-columns: 1fr; }
   .metric-grid, .feature-grid { grid-template-columns: 1fr; }
+  .chat-layout { grid-template-columns: 1fr; }
+  .chat-sessions { max-height: 260px; }
   .sidebar { display: none; }
 
   .startup-loader {

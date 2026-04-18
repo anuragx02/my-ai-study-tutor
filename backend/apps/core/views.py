@@ -13,6 +13,8 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from backend.apps.core.models import (
+    ChatMessage,
+    ChatSession,
     Course,
     KnowledgeBase,
     Question,
@@ -24,6 +26,8 @@ from backend.apps.core.models import (
 from backend.apps.core.permissions import IsStaffUser
 from backend.apps.core.serializers import (
     AskSerializer,
+    ChatMessageSerializer,
+    ChatSessionSerializer,
     CourseSerializer,
     KnowledgeBaseSerializer,
     KnowledgeBaseUploadSerializer,
@@ -311,6 +315,22 @@ class AskView(APIView):
         topic_context = None
 
         question_text = serializer.validated_data["question"]
+        session_id = serializer.validated_data.get("session_id")
+
+        if session_id:
+            session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+        else:
+            session = ChatSession.objects.create(
+                user=request.user,
+                title=question_text.strip()[:80] or "New Chat",
+            )
+
+        ChatMessage.objects.create(
+            session=session,
+            role=ChatMessage.Role.USER,
+            text=question_text,
+        )
+
         kb_hits = KnowledgeBase.objects.filter(user=request.user, file_text__icontains=question_text[:40])[:3]
         if kb_hits:
             kb_context = "\n".join(
@@ -320,14 +340,49 @@ class AskView(APIView):
             topic_context = f"{topic_context or 'knowledge base context'}\nKB:\n{kb_context}"
 
         result = ask_ai(question_text, topic_context=topic_context)
+        ChatMessage.objects.create(
+            session=session,
+            role=ChatMessage.Role.ASSISTANT,
+            text=result.answer,
+            examples=result.examples,
+            related_topics=result.related_topics,
+        )
         return Response(
             {
                 "answer": result.answer,
                 "examples": result.examples,
                 "related_topics": result.related_topics,
+                "session_id": session.id,
             },
             status=status.HTTP_200_OK,
         )
+
+
+class ChatSessionListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        sessions = ChatSession.objects.filter(user=request.user).prefetch_related("messages")
+        return Response(ChatSessionSerializer(sessions, many=True).data, status=status.HTTP_200_OK)
+
+
+class ChatSessionDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, session_id):
+        session = get_object_or_404(ChatSession.objects.prefetch_related("messages"), id=session_id, user=request.user)
+        return Response(
+            {
+                "session": ChatSessionSerializer(session).data,
+                "messages": ChatMessageSerializer(session.messages.all(), many=True).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def delete(self, request, session_id):
+        session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+        session.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class KnowledgeBaseListCreateView(APIView):
