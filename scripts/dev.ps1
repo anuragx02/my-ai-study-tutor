@@ -12,6 +12,10 @@ if (-not (Test-Path $managePath)) {
     exit 1
 }
 
+Set-Location $workspaceRoot
+Write-Host "Cleaning up legacy quiz attempts..." -ForegroundColor Cyan
+& $pythonPath $managePath cleanup_zero_scores
+
 $backendCommand = "Set-Location '$workspaceRoot'; & '$pythonPath' '$managePath' runserver"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCommand | Out-Null
 

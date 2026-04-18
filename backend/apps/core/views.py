@@ -408,6 +408,17 @@ class ProgressView(APIView):
         )
 
 
+class HistoryDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        deleted_count, _ = UserPerformance.objects.filter(user=request.user).delete()
+        return Response(
+            {"deleted_records": deleted_count, "message": "Quiz history cleared"},
+            status=status.HTTP_200_OK,
+        )
+
+
 class RecommendationView(APIView):
     permission_classes = [IsAuthenticated]
 

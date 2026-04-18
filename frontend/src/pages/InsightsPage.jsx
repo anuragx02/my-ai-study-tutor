@@ -13,32 +13,53 @@ const emptyProgress = {
 export default function InsightsPage() {
   const [progress, setProgress] = useState(emptyProgress)
   const [recommendations, setRecommendations] = useState([])
+  const [clearing, setClearing] = useState(false)
+
+  async function loadInsights() {
+    try {
+      const [progressResponse, recommendationsResponse] = await Promise.all([
+        api.get('/analytics/progress'),
+        api.get('/recommendations/'),
+      ])
+
+      setProgress(progressResponse.data || emptyProgress)
+      setRecommendations(recommendationsResponse.data || [])
+    } catch {
+      setProgress(emptyProgress)
+      setRecommendations([])
+    }
+  }
 
   useEffect(() => {
     let active = true
 
-    async function loadInsights() {
-      try {
-        const [progressResponse, recommendationsResponse] = await Promise.all([
-          api.get('/analytics/progress'),
-          api.get('/recommendations/'),
-        ])
-
-        if (!active) return
-        setProgress(progressResponse.data || emptyProgress)
-        setRecommendations(recommendationsResponse.data || [])
-      } catch {
-        if (!active) return
-        setProgress(emptyProgress)
-        setRecommendations([])
-      }
+    const wrapper = async () => {
+      await loadInsights()
     }
+    wrapper()
 
-    loadInsights()
     return () => {
       active = false
     }
   }, [])
+
+  async function handleClearHistory() {
+    if (!window.confirm('Clear all quiz attempts? This cannot be undone.')) {
+      return
+    }
+
+    setClearing(true)
+    try {
+      await api.delete('/analytics/history')
+      setProgress(emptyProgress)
+      setRecommendations([])
+      alert('Quiz history cleared.')
+    } catch (error) {
+      alert('Failed to clear history: ' + (error.response?.data?.detail || 'Unknown error'))
+    } finally {
+      setClearing(false)
+    }
+  }
 
   return (
     <section className="card">
@@ -67,6 +88,18 @@ export default function InsightsPage() {
           ))}
         </div>
         {!recommendations.length ? <p className="muted">No recommendations yet. Take a quiz to generate them.</p> : null}
+      </div>
+
+      <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid rgba(123, 199, 255, 0.2)' }}>
+        <button
+          className="button"
+          onClick={handleClearHistory}
+          disabled={clearing}
+          style={{ background: '#ff8b92' }}
+        >
+          {clearing ? 'Clearing...' : 'Clear history'}
+        </button>
+        <p className="muted" style={{ marginTop: 8 }}>Clears all quiz attempts and resets analytics.</p>
       </div>
     </section>
   )
