@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 
 import requests
 from django.conf import settings
@@ -19,7 +20,39 @@ class RetrievalPayload:
 
 
 def _question_terms(question: str) -> list[str]:
-    return [token.strip(".,:;!?()[]{}\"'").lower() for token in question.split() if len(token.strip()) >= 3]
+    stop_terms = {
+        "the", "and", "for", "with", "from", "that", "this", "what", "where", "when", "which", "how", "are",
+        "hey", "hello", "hi", "tutor", "please", "thanks", "thank", "can", "could", "would", "you", "about",
+    }
+    terms = []
+    for token in question.split():
+        cleaned = token.strip(".,:;!?()[]{}\"'").lower()
+        if len(cleaned) < 3:
+            continue
+        if cleaned in stop_terms:
+            continue
+        terms.append(cleaned)
+    return terms
+
+
+def _is_probably_academic(question: str, terms: list[str]) -> bool:
+    if not question or not question.strip():
+        return False
+
+    lowered = question.lower().strip()
+    greeting_patterns = [
+        r"^(hey|hi|hello)\b",
+        r"^(hey|hi|hello)\s+tutor\b",
+        r"^how are you\b",
+        r"^what's up\b|^whats up\b",
+    ]
+    if any(re.search(pattern, lowered) for pattern in greeting_patterns):
+        return False
+
+    if len(terms) == 0:
+        return False
+
+    return True
 
 
 def _score_chunk(chunk_text: str, terms: list[str]) -> float:
@@ -88,6 +121,15 @@ def _ensure_user_chunks(user: User) -> None:
 
 def retrieve_context(question: str, user: User) -> RetrievalPayload:
     terms = _question_terms(question)
+    if not _is_probably_academic(question, terms):
+        return RetrievalPayload(
+            context=None,
+            citations=[],
+            confidence=0.0,
+            source_type="none",
+            fallback_used=False,
+        )
+
     _ensure_user_chunks(user)
 
     top_k = getattr(settings, "KB_TOP_K", 4)

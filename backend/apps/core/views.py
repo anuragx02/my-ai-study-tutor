@@ -333,7 +333,8 @@ class AskView(APIView):
         )
 
         retrieval = retrieve_context(question=question_text, user=request.user)
-        result = ask_ai(question_text, topic_context=retrieval.context)
+        is_academic = bool(retrieval.context or retrieval.source_type in {"kb", "web", "mixed"})
+        result = ask_ai(question_text, topic_context=retrieval.context, is_academic=is_academic)
         ChatMessage.objects.create(
             session=session,
             role=ChatMessage.Role.ASSISTANT,

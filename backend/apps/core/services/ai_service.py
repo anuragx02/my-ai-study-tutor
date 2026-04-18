@@ -17,7 +17,7 @@ def _parse_response(content: str) -> AIResponse:
     content = _strip_markdown_json(content)
     payload = json.loads(content)
     return AIResponse(
-        answer=payload["answer"],
+        answer=str(payload.get("answer", "")).strip(),
         examples=list(payload.get("examples", []))[:5],
         related_topics=list(payload.get("related_topics", []))[:5],
     )
@@ -34,9 +34,31 @@ def _strip_markdown_json(content: str) -> str:
     return content.strip()
 
 
-def ask_ai(question: str, topic_context: str | None = None) -> AIResponse:
+def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = True) -> AIResponse:
     prompt_context = topic_context or "general academic support"
     client = Groq(api_key=settings.GROQ_API_KEY)
+
+    if is_academic:
+        system_prompt = (
+            "You are an academic tutor. Return only valid JSON with keys answer, examples, related_topics. "
+            "Use examples and related_topics only when genuinely useful. Keep them empty arrays when not needed. "
+            "Keep the answer concise, clear, and practical."
+        )
+        user_prompt = (
+            f"Topic context: {prompt_context}\n"
+            f"Question: {question}\n"
+            "Return JSON only."
+        )
+    else:
+        system_prompt = (
+            "You are a friendly study tutor. Return only valid JSON with keys answer, examples, related_topics. "
+            "For non-academic questions, reply naturally in 1-3 sentences and gently steer the user back to study topics in the final sentence. "
+            "Always return examples as [] and related_topics as [] for non-academic questions."
+        )
+        user_prompt = (
+            f"User message: {question}\n"
+            "This is non-academic. Reply conversationally and add a gentle study redirection. Return JSON only."
+        )
 
     response = client.chat.completions.create(
         model=settings.GROQ_MODEL,
@@ -44,23 +66,20 @@ def ask_ai(question: str, topic_context: str | None = None) -> AIResponse:
         messages=[
             {
                 "role": "system",
-                "content": (
-                    "You are an academic tutor. Return only valid JSON with keys answer, examples, related_topics. "
-                    "Make the answer concise, clear, and useful."
-                ),
+                "content": system_prompt,
             },
             {
                 "role": "user",
-                "content": (
-                    f"Topic context: {prompt_context}\n"
-                    f"Question: {question}\n"
-                    "Return JSON only."
-                ),
+                "content": user_prompt,
             },
         ],
     )
     content = response.choices[0].message.content or ""
-    return _parse_response(content)
+    parsed = _parse_response(content)
+    if not parsed.answer:
+        fallback_answer = "I can help with that. If you want, share a study topic or question and I will guide you step by step."
+        return AIResponse(answer=fallback_answer, examples=[], related_topics=[])
+    return parsed
 
 
 def generate_chat_title(question: str) -> str:

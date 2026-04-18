@@ -6,6 +6,8 @@ const starterMessages = [
   { role: 'assistant', text: 'Ask me anything about a topic and I will explain it step by step.' },
 ]
 
+const CITATION_CONFIDENCE_MIN = 0.65
+
 export default function ChatTutorPage() {
   const [sessions, setSessions] = useState([])
   const [currentSessionId, setCurrentSessionId] = useState(null)
@@ -197,7 +199,7 @@ export default function ChatTutorPage() {
                     Retrieval confidence: {(Number(message.retrieval_confidence) * 100).toFixed(0)}%
                   </div>
                 ) : null}
-                {message.role === 'assistant' && message.citations?.length ? (
+                {message.role === 'assistant' && Number(message.retrieval_confidence) >= CITATION_CONFIDENCE_MIN && message.citations?.length ? (
                   <div className="citations-block">
                     <strong>Sources</strong>
                     <div className="citations-grid">
