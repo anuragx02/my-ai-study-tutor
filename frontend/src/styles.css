@@ -179,6 +179,23 @@ button, input, textarea, select { font: inherit; }
   font-size: 0.85rem;
 }
 
+.debug-tag {
+  margin-top: 6px;
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.debug-tag__item {
+  border: 1px solid rgba(137, 170, 255, 0.28);
+  background: rgba(110, 168, 254, 0.1);
+  color: #bad5ff;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+}
+
 .citations-block {
   margin-top: 10px;
   display: grid;

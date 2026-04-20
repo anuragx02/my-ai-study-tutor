@@ -51,6 +51,7 @@ export default function ChatTutorPage() {
         citations: message.citations || [],
         retrieval_confidence: message.retrieval_confidence,
         source_type: message.source_type,
+        fallback_used: message.source_type === 'web' || message.source_type === 'mixed',
       }))
       setMessages(serverMessages.length ? serverMessages : starterMessages)
     } catch {
@@ -197,6 +198,12 @@ export default function ChatTutorPage() {
                 {message.role === 'assistant' && Number.isFinite(Number(message.retrieval_confidence)) ? (
                   <div className="confidence-note muted">
                     Retrieval confidence: {(Number(message.retrieval_confidence) * 100).toFixed(0)}%
+                  </div>
+                ) : null}
+                {message.role === 'assistant' ? (
+                  <div className="debug-tag" title="Debug retrieval path">
+                    <span className="debug-tag__item">path: {message.source_type || 'none'}</span>
+                    <span className="debug-tag__item">fallback: {message.fallback_used ? 'yes' : 'no'}</span>
                   </div>
                 ) : null}
                 {message.role === 'assistant' && message.citations?.length && (
