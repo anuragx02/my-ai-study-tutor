@@ -9,6 +9,11 @@ from django.conf import settings
 from backend.apps.core.models import KnowledgeBase, KnowledgeBaseChunk, User
 from backend.apps.core.services.chunk_service import sync_document_chunks
 
+try:
+    from tavily import TavilyClient
+except ImportError:  # pragma: no cover - optional dependency during local setup
+    TavilyClient = None
+
 
 @dataclass
 class RetrievalPayload:
@@ -106,6 +111,41 @@ def _tavily_request(url: str, payload: dict, api_key: str) -> list[dict]:
     return []
 
 
+def _tavily_sdk_search(question: str, max_results: int, api_key: str) -> list[dict]:
+    if TavilyClient is None:
+        return []
+
+    try:
+        client = TavilyClient(api_key=api_key)
+        response = client.search(
+            query=question,
+            search_depth="advanced",
+            max_results=max_results,
+            include_answer=False,
+            include_raw_content=False,
+        )
+    except Exception:
+        return []
+
+    if isinstance(response, dict):
+        results = response.get("results", [])
+    else:
+        results = getattr(response, "results", [])
+
+    normalized: list[dict] = []
+    for item in results[:max_results]:
+        normalized.append(
+            {
+                "title": item.get("title") or "Web Source",
+                "snippet": (item.get("content") or item.get("snippet") or "")[:240],
+                "url": item.get("url") or "",
+                "score": float(item.get("score") or 0.6),
+                "source": "web",
+            }
+        )
+    return normalized
+
+
 def _score_chunk(chunk_text: str, terms: list[str]) -> float:
     if not terms:
         return 0.0
@@ -122,6 +162,10 @@ def _fetch_web_results(question: str, max_results: int = 3) -> list[dict]:
     api_key = getattr(settings, "TAVILY_API_KEY", "")
     if not api_key:
         return []
+
+    sdk_results = _tavily_sdk_search(question, max_results, api_key)
+    if sdk_results:
+        return sdk_results
 
     base_url = getattr(settings, "TAVILY_API_BASE", "https://api.tavily.com")
     url = f"{base_url.rstrip('/')}/search"
