@@ -204,6 +204,7 @@ export default function ChatTutorPage() {
                   <div className="debug-tag" title="Debug retrieval path">
                     <span className="debug-tag__item">path: {message.source_type || 'none'}</span>
                     <span className="debug-tag__item">fallback: {message.fallback_used ? 'yes' : 'no'}</span>
+                    <span className="debug-tag__item">sources: {message.citations?.length || 0}</span>
                   </div>
                 ) : null}
                 {message.role === 'assistant' && message.citations?.length && (

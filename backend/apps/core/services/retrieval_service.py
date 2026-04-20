@@ -151,6 +151,17 @@ def _fetch_web_results(question: str, max_results: int = 3) -> list[dict]:
         return []
 
 
+def _web_fallback_unavailable_reason() -> str | None:
+    if not getattr(settings, "WEB_FALLBACK_ENABLED", False):
+        return "web fallback is disabled in backend settings"
+
+    api_key = getattr(settings, "TAVILY_API_KEY", "")
+    if not api_key:
+        return "Tavily API key is missing in the running backend environment"
+
+    return None
+
+
 def _ensure_user_chunks(user: User) -> None:
     if KnowledgeBaseChunk.objects.filter(knowledge_base__user=user).exists():
         return
@@ -168,6 +179,19 @@ def retrieve_context(question: str, user: User) -> RetrievalPayload:
     force_web = _is_live_info_query(question)
 
     if force_web:
+        unavailable_reason = _web_fallback_unavailable_reason()
+        if unavailable_reason:
+            return RetrievalPayload(
+                context=(
+                    f"Live web data is required for this question, but {unavailable_reason}. "
+                    "Tell the user to configure backend env/redeploy and retry."
+                ),
+                citations=[],
+                confidence=0.0,
+                source_type="web",
+                fallback_used=False,
+            )
+
         web_citations = _fetch_web_results(question, max_results=3)
         if web_citations:
             web_context = "\n\n".join(
