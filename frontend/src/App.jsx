@@ -7,7 +7,6 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import ChatTutorPage from './pages/ChatTutorPage'
-import KnowledgeBasePage from './pages/KnowledgeBasePage'
 import QuizPage from './pages/QuizPage'
 import InsightsPage from './pages/InsightsPage'
 
@@ -22,13 +21,12 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<DashboardPage />} />
-            <Route path="/materials" element={<KnowledgeBasePage />} />
             <Route path="/chat" element={<ChatTutorPage />} />
             <Route path="/quiz" element={<QuizPage />} />
             <Route path="/insights" element={<InsightsPage />} />
             <Route path="/analytics" element={<Navigate to="/insights" replace />} />
             <Route path="/recommendations" element={<Navigate to="/insights" replace />} />
-            <Route path="/courses" element={<Navigate to="/materials" replace />} />
+            <Route path="/courses" element={<Navigate to="/" replace />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

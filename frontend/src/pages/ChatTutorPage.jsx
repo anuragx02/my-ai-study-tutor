@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react'
 import api from '../services/api'
-import CitationCard from '../components/CitationCard'
 
 const starterMessages = [
   { role: 'assistant', text: 'Ask me anything about a topic and I will explain it step by step.' },
 ]
-
-const CITATION_CONFIDENCE_MIN = 0.65
 
 export default function ChatTutorPage() {
   const [sessions, setSessions] = useState([])
@@ -50,10 +47,7 @@ export default function ChatTutorPage() {
         text: message.text,
         examples: message.examples,
         related_topics: message.related_topics,
-        citations: message.citations || [],
-        retrieval_confidence: message.retrieval_confidence,
         source_type: message.source_type,
-        fallback_used: message.source_type === 'web' || message.source_type === 'mixed',
       }))
       setMessages(serverMessages.length ? serverMessages : starterMessages)
     } catch {
@@ -192,34 +186,9 @@ export default function ChatTutorPage() {
             {messages.map((message, index) => (
               <div key={index} className={`message ${message.role}`}>
                 <div>{message.text}</div>
-                {message.role === 'assistant' && message.source_type === 'web' ? (
-                  <div className="fallback-notice">Low KB confidence: response includes web fallback sources.</div>
-                ) : null}
-                {message.role === 'assistant' && message.source_type === 'mixed' ? (
-                  <div className="fallback-notice">Mixed sources used: knowledge base and web results.</div>
-                ) : null}
-                {message.role === 'assistant' && Number.isFinite(Number(message.retrieval_confidence)) ? (
-                  <div className="confidence-note muted">
-                    Retrieval confidence: {(Number(message.retrieval_confidence) * 100).toFixed(0)}%
-                  </div>
-                ) : null}
                 {message.role === 'assistant' ? (
                   <div className="debug-tag" title="Debug retrieval path">
                     <span className="debug-tag__item">path: {message.source_type || 'none'}</span>
-                    <span className="debug-tag__item">fallback: {message.fallback_used ? 'yes' : 'no'}</span>
-                    <span className="debug-tag__item">sources: {message.citations?.length || 0}</span>
-                  </div>
-                ) : null}
-                {message.role === 'assistant' && message.citations?.length && (
-                  Number(message.retrieval_confidence) >= CITATION_CONFIDENCE_MIN || message.source_type === 'web' || message.source_type === 'mixed'
-                ) ? (
-                  <div className="citations-block">
-                    <strong>Sources</strong>
-                    <div className="citations-grid">
-                      {message.citations.map((citation, citationIndex) => (
-                        <CitationCard key={`${index}-${citationIndex}`} citation={citation} />
-                      ))}
-                    </div>
                   </div>
                 ) : null}
                 {message.examples?.length ? (
@@ -241,7 +210,7 @@ export default function ChatTutorPage() {
           </div>
 
           <form className="form-row" style={{ marginTop: 20 }} onSubmit={handleSubmit}>
-            <input className="input" placeholder={forceWeb ? 'Ask for live/current info...' : 'Ask an academic question...'} value={question} onChange={(event) => setQuestion(event.target.value)} />
+            <input className="input" placeholder={forceWeb ? 'Ask for live/current info...' : 'Ask anything...'} value={question} onChange={(event) => setQuestion(event.target.value)} />
             <button
               type="button"
               className="button"
@@ -251,12 +220,12 @@ export default function ChatTutorPage() {
                 background: forceWeb ? 'linear-gradient(135deg, #ffce73, #ff8e3c)' : 'linear-gradient(135deg, #6ea8fe, #2f74ff)',
               }}
             >
-              {forceWeb ? 'Web mode: on' : 'Web mode: off'}
+              {forceWeb ? 'Web on' : 'Web off'}
             </button>
             <button className="button" type="submit" disabled={loading}>{loading ? 'Thinking...' : 'Send'}</button>
           </form>
           <div className="muted" style={{ marginTop: 10, fontSize: 13 }}>
-            {forceWeb ? 'Web mode uses live web sources first.' : 'Turn on web mode to force live web lookup.'}
+            {forceWeb ? 'Web search is enabled.' : 'Plain tutor chat is enabled.'}
           </div>
           {error ? <div style={{ color: '#ff8b92', marginTop: 12 }}>{error}</div> : null}
         </div>
