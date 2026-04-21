@@ -16,7 +16,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from backend.apps.core.models import (
     ChatMessage,
     ChatSession,
-    Course,
     KnowledgeBase,
     Question,
     Quiz,
@@ -29,7 +28,6 @@ from backend.apps.core.serializers import (
     AskSerializer,
     ChatMessageSerializer,
     ChatSessionSerializer,
-    CourseSerializer,
     KnowledgeBaseSerializer,
     KnowledgeBaseUploadSerializer,
     LoginSerializer,
@@ -166,24 +164,15 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
 
-class CourseListCreateView(generics.ListCreateAPIView):
-    queryset = Course.objects.select_related("created_by").prefetch_related("topics")
-    serializer_class = CourseSerializer
+class TopicListCreateView(generics.ListCreateAPIView):
+    serializer_class = TopicSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_permissions(self):
-        if self.request.method.upper() == "POST":
-            return [IsAuthenticated(), IsStaffUser()]
-        return super().get_permissions()
+    def get_queryset(self):
+        return Topic.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
-
-
-class TopicListCreateView(generics.ListCreateAPIView):
-    queryset = Topic.objects.select_related("course")
-    serializer_class = TopicSerializer
-    permission_classes = [IsAuthenticated, IsStaffUser]
+        serializer.save(user=self.request.user)
 
 
 class StudyMaterialListCreateView(generics.ListCreateAPIView):
@@ -213,17 +202,10 @@ class QuizGenerateView(APIView):
         quiz_topic = focus or kb_seed or "General Study"
         payload = generate_ai_quiz(topic=quiz_topic, difficulty=difficulty, total_questions=total_questions)
 
-        fallback_topic = Topic.objects.order_by("id").first()
+        fallback_topic = Topic.objects.filter(user=request.user).order_by("id").first()
         if not fallback_topic:
-            fallback_course, _ = Course.objects.get_or_create(
-                title="General Study",
-                defaults={
-                    "description": "Auto-created course for KB-first quiz generation.",
-                    "created_by": request.user,
-                },
-            )
             fallback_topic, _ = Topic.objects.get_or_create(
-                course=fallback_course,
+                user=request.user,
                 title="General Practice",
                 defaults={"difficulty": Topic.Difficulty.EASY},
             )
@@ -334,7 +316,9 @@ class AskView(APIView):
         )
 
         retrieval = retrieve_context(question=question_text, user=request.user, force_web=force_web)
-        is_academic = bool(retrieval.context or retrieval.source_type in {"kb", "web", "mixed"})
+        # Default to academic tutoring even when KB has no match,
+        # so the model can still answer directly without web lookup.
+        is_academic = True
         result = ask_ai(question_text, topic_context=retrieval.context, is_academic=is_academic)
         ChatMessage.objects.create(
             session=session,
@@ -467,7 +451,7 @@ class ProgressView(APIView):
                 "quiz_score_trend": score_values[-5:],
                 "accuracy": round(performances.aggregate(avg=Avg("score"))["avg"] or 0, 2),
                 "weak_topics": [topic for topic, _ in weak_topics_counter.most_common(5)],
-                "study_time_minutes": int(performances.aggregate(total=Sum("completion_time"))["total"] or 0),
+                "study_time_minutes": int((performances.aggregate(total=Sum("completion_time"))["total"] or 0) / 60),
             }
         )
 
