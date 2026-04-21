@@ -1,5 +1,4 @@
 import json
-import re
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -14,67 +13,8 @@ class AIResponse:
     related_topics: list[str]
 
 
-def _is_math_question(question: str) -> bool:
-    text = (question or "").lower().strip()
-    if not text:
-        return False
-
-    keyword_markers = {
-        "math",
-        "mathematics",
-        "algebra",
-        "geometry",
-        "trigonometry",
-        "calculus",
-        "differentiate",
-        "derivative",
-        "integrate",
-        "integral",
-        "equation",
-        "simplify",
-        "solve",
-        "factor",
-        "quadratic",
-        "probability",
-        "statistics",
-        "matrix",
-    }
-    if any(marker in text for marker in keyword_markers):
-        return True
-
-    symbol_patterns = [
-        r"\d+\s*[+\-*/^=]\s*\d+",
-        r"\bx\b|\by\b|\bz\b",
-        r"\b(sin|cos|tan|log|ln)\b",
-        r"\b\d+\s*%\b",
-    ]
-    return any(re.search(pattern, text) for pattern in symbol_patterns)
-
-
-def _parse_response(content: str) -> AIResponse:
-    content = _strip_markdown_json(content)
-    payload = json.loads(content)
-    return AIResponse(
-        answer=str(payload.get("answer", "")).strip(),
-        examples=list(payload.get("examples", []))[:5],
-        related_topics=list(payload.get("related_topics", []))[:5],
-    )
-
-
-def _strip_markdown_json(content: str) -> str:
-    content = content.strip()
-    if content.startswith("```"):
-        lines = content.split("\n", 1)
-        if len(lines) > 1:
-            content = lines[1]
-    if content.endswith("```"):
-        content = content[:-3]
-    return content.strip()
-
-
 def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = True) -> AIResponse:
     prompt_context = topic_context or "general academic support"
-    is_math = _is_math_question(question)
 
     if topic_context and "Live web data is required" in topic_context:
         return AIResponse(
@@ -87,36 +27,16 @@ def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = 
         )
 
     client = Groq(api_key=settings.GROQ_API_KEY)
+    system_prompt = """You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving.
+            Focus on accuracy, clarity, and helpful guidance."""
 
-    if is_academic:
-        if is_math:
-            system_prompt = (
-                "You are an academic math tutor. Return only valid JSON with keys answer, examples, related_topics. "
-                "Give a clear step-by-step solution using numbered steps. "
-                "Explain each transformation briefly and include the final result on a new line starting with 'Final answer:'. "
-                "Use examples and related_topics only when genuinely useful. Keep them empty arrays when not needed."
-            )
-        else:
-            system_prompt = (
-                "You are an academic tutor. Return only valid JSON with keys answer, examples, related_topics. "
-                "Use examples and related_topics only when genuinely useful. Keep them empty arrays when not needed. "
-                "Keep the answer concise, clear, and practical."
-            )
-        user_prompt = (
-            f"Topic context: {prompt_context}\n"
-            f"Question: {question}\n"
-            "Return JSON only."
-        )
-    else:
-        system_prompt = (
-            "You are a friendly study tutor. Return only valid JSON with keys answer, examples, related_topics. "
-            "For non-academic questions, reply naturally in 1-3 sentences and gently steer the user back to study topics in the final sentence. "
-            "Always return examples as [] and related_topics as [] for non-academic questions."
-        )
-        user_prompt = (
-            f"User message: {question}\n"
-            "This is non-academic. Reply conversationally and add a gentle study redirection. Return JSON only."
-        )
+    mode = "academic" if is_academic else "non-academic"
+    user_prompt = (
+        f"Mode: {mode}\n"
+        f"Topic context: {prompt_context}\n"
+        f"Question: {question}\n"
+        "Return JSON only."
+    )
 
     response = client.chat.completions.create(
         model=settings.GROQ_MODEL,
@@ -133,7 +53,17 @@ def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = 
         ],
     )
     content = response.choices[0].message.content or ""
-    parsed = _parse_response(content)
+    try:
+        payload = json.loads(content.strip())
+    except Exception:
+        payload = {}
+
+    parsed = AIResponse(
+        answer=str(payload.get("answer", "")).strip(),
+        examples=list(payload.get("examples", []))[:5],
+        related_topics=list(payload.get("related_topics", []))[:5],
+    )
+
     if not parsed.answer:
         fallback_answer = "I can help with that. If you want, share a study topic or question and I will guide you step by step."
         return AIResponse(answer=fallback_answer, examples=[], related_topics=[])
@@ -198,6 +128,5 @@ def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5
             },
         ],
     )
-    content = response.choices[0].message.content or ""
-    content = _strip_markdown_json(content)
+    content = (response.choices[0].message.content or "").strip()
     return json.loads(content)
