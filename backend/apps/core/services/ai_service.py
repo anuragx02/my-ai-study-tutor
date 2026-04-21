@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -11,6 +12,43 @@ class AIResponse:
     answer: str
     examples: list[str]
     related_topics: list[str]
+
+
+def _is_math_question(question: str) -> bool:
+    text = (question or "").lower().strip()
+    if not text:
+        return False
+
+    keyword_markers = {
+        "math",
+        "mathematics",
+        "algebra",
+        "geometry",
+        "trigonometry",
+        "calculus",
+        "differentiate",
+        "derivative",
+        "integrate",
+        "integral",
+        "equation",
+        "simplify",
+        "solve",
+        "factor",
+        "quadratic",
+        "probability",
+        "statistics",
+        "matrix",
+    }
+    if any(marker in text for marker in keyword_markers):
+        return True
+
+    symbol_patterns = [
+        r"\d+\s*[+\-*/^=]\s*\d+",
+        r"\bx\b|\by\b|\bz\b",
+        r"\b(sin|cos|tan|log|ln)\b",
+        r"\b\d+\s*%\b",
+    ]
+    return any(re.search(pattern, text) for pattern in symbol_patterns)
 
 
 def _parse_response(content: str) -> AIResponse:
@@ -36,6 +74,7 @@ def _strip_markdown_json(content: str) -> str:
 
 def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = True) -> AIResponse:
     prompt_context = topic_context or "general academic support"
+    is_math = _is_math_question(question)
 
     if topic_context and "Live web data is required" in topic_context:
         return AIResponse(
@@ -50,11 +89,19 @@ def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = 
     client = Groq(api_key=settings.GROQ_API_KEY)
 
     if is_academic:
-        system_prompt = (
-            "You are an academic tutor. Return only valid JSON with keys answer, examples, related_topics. "
-            "Use examples and related_topics only when genuinely useful. Keep them empty arrays when not needed. "
-            "Keep the answer concise, clear, and practical."
-        )
+        if is_math:
+            system_prompt = (
+                "You are an academic math tutor. Return only valid JSON with keys answer, examples, related_topics. "
+                "Give a clear step-by-step solution using numbered steps. "
+                "Explain each transformation briefly and include the final result on a new line starting with 'Final answer:'. "
+                "Use examples and related_topics only when genuinely useful. Keep them empty arrays when not needed."
+            )
+        else:
+            system_prompt = (
+                "You are an academic tutor. Return only valid JSON with keys answer, examples, related_topics. "
+                "Use examples and related_topics only when genuinely useful. Keep them empty arrays when not needed. "
+                "Keep the answer concise, clear, and practical."
+            )
         user_prompt = (
             f"Topic context: {prompt_context}\n"
             f"Question: {question}\n"

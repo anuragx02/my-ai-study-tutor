@@ -5,7 +5,6 @@ from django.contrib.auth import get_user_model
 from backend.apps.core.models import (
     ChatMessage,
     ChatSession,
-    Course,
     KnowledgeBase,
     Question,
     Quiz,
@@ -19,21 +18,12 @@ User = get_user_model()
 
 
 class TopicSerializer(serializers.ModelSerializer):
-    course_title = serializers.CharField(source="course.title", read_only=True)
-
     class Meta:
         model = Topic
-        fields = ["id", "course", "course_title", "title", "difficulty"]
+        fields = ["id", "title", "difficulty"]
 
 
-class CourseSerializer(serializers.ModelSerializer):
-    topics = TopicSerializer(many=True, read_only=True)
-    topic_count = serializers.IntegerField(source="topics.count", read_only=True)
 
-    class Meta:
-        model = Course
-        fields = ["id", "title", "description", "created_by", "created_at", "topic_count", "topics"]
-        read_only_fields = ["created_by", "created_at"]
 
 
 class StudyMaterialSerializer(serializers.ModelSerializer):

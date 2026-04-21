@@ -24,32 +24,18 @@ class User(AbstractUser):
         return self.email
 
 
-class Course(models.Model):
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="courses")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["title"]
-        db_table = "courses_course"
-
-    def __str__(self):
-        return self.title
-
-
 class Topic(models.Model):
     class Difficulty(models.TextChoices):
         EASY = "easy", "Easy"
         MEDIUM = "medium", "Medium"
         HARD = "hard", "Hard"
 
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="topics")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="topics")
     title = models.CharField(max_length=200)
     difficulty = models.CharField(max_length=20, choices=Difficulty.choices, default=Difficulty.EASY)
 
     class Meta:
-        ordering = ["course", "title"]
+        ordering = ["user", "title"]
         db_table = "courses_topic"
 
     def __str__(self):
