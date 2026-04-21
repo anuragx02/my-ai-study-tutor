@@ -44,7 +44,7 @@ export default function QuizPage() {
   return (
     <section className="card">
       <h2 className="page-title">Quiz Interface</h2>
-      <p className="muted">Generate quizzes from your uploaded study material and submit for scoring.</p>
+      <p className="muted">Generate quizzes by topic and submit for scoring.</p>
 
       <form className="feature-grid" style={{ marginTop: 20 }} onSubmit={generateQuiz}>
         <input

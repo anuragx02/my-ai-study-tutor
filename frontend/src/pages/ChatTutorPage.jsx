@@ -126,7 +126,7 @@ export default function ChatTutorPage() {
   return (
     <section className="card">
       <h2 className="page-title">AI Chat Tutor</h2>
-      <p className="muted">Ask questions from your uploaded study material and revisit your past conversations any time.</p>
+      <p className="muted">Ask tutor questions directly, or turn on web mode for current information.</p>
 
       <div className="chat-layout" style={{ marginTop: 20 }}>
         <aside className="card chat-sessions" style={{ padding: 12, maxHeight: 560, overflow: 'auto' }}>
