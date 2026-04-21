@@ -394,7 +394,7 @@ class RecommendationView(APIView):
                 {
                     "id": index + 1,
                     "topic": topic_title,
-                    "suggested_material": f"Revisit your uploaded study material for {topic_title} and retake a quiz.",
+                    "suggested_material": f"Revisit {topic_title} concepts in chat and retake a quiz.",
                     "date_generated": timezone.now().isoformat().replace("+00:00", "Z"),
                 }
                 for index, topic_title in enumerate(selected_topics)

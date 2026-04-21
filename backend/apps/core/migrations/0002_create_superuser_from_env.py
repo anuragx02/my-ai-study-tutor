@@ -5,7 +5,7 @@ from django.db import migrations
 
 
 def create_or_sync_superuser(apps, schema_editor):
-    """Create superuser from env vars or sync if exists. Always sync password on run."""
+    """Create superuser from env vars or sync if exists."""
     email = os.getenv("DJANGO_SUPERUSER_EMAIL", "").strip().lower()
     password = os.getenv("DJANGO_SUPERUSER_PASSWORD", "")
     name = os.getenv("DJANGO_SUPERUSER_NAME", "Admin").strip() or "Admin"
@@ -40,7 +40,7 @@ def create_or_sync_superuser(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("core", "0002_alter_user_role_student_only"),
+        ("core", "0001_initial"),
     ]
 
     operations = [
