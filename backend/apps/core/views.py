@@ -1,12 +1,9 @@
 from collections import Counter
-from pathlib import Path
 
-from django.conf import settings
 from django.db.models import Avg, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
-from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,7 +13,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from backend.apps.core.models import (
     ChatMessage,
     ChatSession,
-    KnowledgeBase,
     Question,
     Quiz,
     StudyMaterial,
@@ -28,8 +24,6 @@ from backend.apps.core.serializers import (
     AskSerializer,
     ChatMessageSerializer,
     ChatSessionSerializer,
-    KnowledgeBaseSerializer,
-    KnowledgeBaseUploadSerializer,
     LoginSerializer,
     LogoutSerializer,
     ProfileSerializer,
@@ -42,28 +36,7 @@ from backend.apps.core.serializers import (
     UserSerializer,
 )
 from backend.apps.core.services.ai_service import ask_ai, generate_chat_title, generate_quiz as generate_ai_quiz
-from backend.apps.core.services.chunk_service import sync_document_chunks
 from backend.apps.core.services.retrieval_service import retrieve_context
-
-from pypdf import PdfReader
-
-
-def _detect_file_type(filename: str) -> str:
-    extension = Path(filename).suffix.lower().lstrip(".")
-    if extension in {"pdf", "txt"}:
-        return extension
-    raise ValueError("Unsupported file type. Allowed types: PDF, TXT.")
-
-
-def _extract_text_from_file(uploaded_file, file_type: str) -> str:
-    if file_type == "txt":
-        return uploaded_file.read().decode("utf-8", errors="ignore")
-
-    if file_type == "pdf":
-        reader = PdfReader(uploaded_file)
-        return "\n".join((page.extract_text() or "") for page in reader.pages)
-
-    raise ValueError(f"Unsupported file type: {file_type}")
 
 
 def _normalize_quiz_option(value: str | None) -> str | None:
@@ -196,10 +169,7 @@ class QuizGenerateView(APIView):
         total_questions = serializer.validated_data["total_questions"]
 
         focus = serializer.validated_data.get("focus", "").strip()
-        kb_seed = " ".join(
-            KnowledgeBase.objects.filter(user=request.user).values_list("title", flat=True)[:5]
-        )
-        quiz_topic = focus or kb_seed or "General Study"
+        quiz_topic = focus or "General Study"
         payload = generate_ai_quiz(topic=quiz_topic, difficulty=difficulty, total_questions=total_questions)
 
         fallback_topic = Topic.objects.filter(user=request.user).order_by("id").first()
@@ -372,65 +342,6 @@ class ChatSessionDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class KnowledgeBaseListCreateView(APIView):
-    permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]
-
-    def get(self, request):
-        documents = KnowledgeBase.objects.filter(user=request.user)
-        return Response(KnowledgeBaseSerializer(documents, many=True).data)
-
-    def post(self, request):
-        serializer = KnowledgeBaseUploadSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        uploaded_file = serializer.validated_data["file"]
-        title = serializer.validated_data.get("title") or uploaded_file.name
-
-        try:
-            file_type = _detect_file_type(uploaded_file.name)
-        except ValueError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            file_text = _extract_text_from_file(uploaded_file, file_type)
-        except Exception as exc:
-            return Response({"detail": f"Failed to extract text: {str(exc)}"}, status=status.HTTP_400_BAD_REQUEST)
-
-        kb = KnowledgeBase.objects.create(
-            user=request.user,
-            title=title,
-            file_type=file_type,
-            original_filename=uploaded_file.name,
-            file_text=file_text,
-        )
-
-        sync_document_chunks(
-            kb,
-            chunk_size_chars=getattr(settings, "KB_CHUNK_SIZE_CHARS", 1200),
-            overlap_chars=getattr(settings, "KB_CHUNK_OVERLAP_CHARS", 200),
-        )
-
-        return Response(KnowledgeBaseSerializer(kb).data, status=status.HTTP_201_CREATED)
-
-
-class KnowledgeBaseDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request, document_id):
-        document = get_object_or_404(KnowledgeBase, id=document_id, user=request.user)
-        document.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class KnowledgeBasePurgeView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request):
-        deleted_count, _ = KnowledgeBase.objects.filter(user=request.user).delete()
-        return Response({"deleted_documents": deleted_count}, status=status.HTTP_200_OK)
-
-
 class ProgressView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -490,25 +401,12 @@ class RecommendationView(APIView):
             ]
             return Response(items)
 
-        kb_titles = list(KnowledgeBase.objects.filter(user=request.user).values_list("title", flat=True)[:3])
-        if kb_titles:
-            items = [
-                {
-                    "id": index + 1,
-                    "topic": "Knowledge Base",
-                    "suggested_material": f"Review {title} and ask 3 tutor questions to reinforce retention.",
-                    "date_generated": timezone.now().isoformat().replace("+00:00", "Z"),
-                }
-                for index, title in enumerate(kb_titles)
-            ]
-            return Response(items)
-
         return Response(
             [
                 {
                     "id": 1,
                     "topic": "Getting Started",
-                    "suggested_material": "Upload at least one PDF or TXT file to generate personalized recommendations.",
+                    "suggested_material": "Start with a short chat session and then take a quiz to get personalized recommendations.",
                     "date_generated": timezone.now().isoformat().replace("+00:00", "Z"),
                 }
             ]

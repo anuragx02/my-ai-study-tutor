@@ -5,7 +5,6 @@ from django.contrib.auth import get_user_model
 from backend.apps.core.models import (
     ChatMessage,
     ChatSession,
-    KnowledgeBase,
     Question,
     Quiz,
     StudyMaterial,
@@ -133,24 +132,6 @@ class ChatSessionSerializer(serializers.ModelSerializer):
         if not last_message:
             return ""
         return (last_message.text or "")[:120]
-
-
-class KnowledgeBaseUploadSerializer(serializers.Serializer):
-    file = serializers.FileField()
-    title = serializers.CharField(max_length=255, required=False, allow_blank=True)
-
-
-class KnowledgeBaseSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = KnowledgeBase
-        fields = [
-            "id",
-            "title",
-            "file_type",
-            "original_filename",
-            "created_at",
-            "updated_at",
-        ]
 
 
 class UserSerializer(serializers.ModelSerializer):

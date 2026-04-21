@@ -119,39 +119,6 @@ class StudyRecommendation(models.Model):
         db_table = "recommendations_studyrecommendation"
 
 
-class KnowledgeBase(models.Model):
-    class FileType(models.TextChoices):
-        PDF = "pdf", "PDF"
-        TXT = "txt", "TXT"
-
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="knowledge_bases")
-    title = models.CharField(max_length=255)
-    file_type = models.CharField(max_length=10, choices=FileType.choices)
-    original_filename = models.CharField(max_length=255)
-    file_text = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["-created_at"]
-        db_table = "kb_knowledge_base"
-        verbose_name_plural = "Knowledge Bases"
-
-
-class KnowledgeBaseChunk(models.Model):
-    knowledge_base = models.ForeignKey(KnowledgeBase, on_delete=models.CASCADE, related_name="chunks")
-    chunk_index = models.PositiveIntegerField()
-    chunk_text = models.TextField()
-    token_count = models.PositiveIntegerField(default=0)
-    metadata = models.JSONField(default=dict, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "kb_knowledge_base_chunk"
-        ordering = ["knowledge_base_id", "chunk_index"]
-        unique_together = ("knowledge_base", "chunk_index")
-
-
 class ChatSession(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="chat_sessions")
     title = models.CharField(max_length=255)
@@ -169,9 +136,7 @@ class ChatSession(models.Model):
 class ChatMessage(models.Model):
     class SourceType(models.TextChoices):
         NONE = "none", "None"
-        KB = "kb", "Knowledge Base"
         WEB = "web", "Web"
-        MIXED = "mixed", "Mixed"
 
     class Role(models.TextChoices):
         USER = "user", "User"
