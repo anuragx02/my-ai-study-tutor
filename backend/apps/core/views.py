@@ -317,6 +317,7 @@ class AskView(APIView):
         serializer.is_valid(raise_exception=True)
         question_text = serializer.validated_data["question"]
         session_id = serializer.validated_data.get("session_id")
+        force_web = serializer.validated_data.get("force_web", False)
 
         if session_id:
             session = get_object_or_404(ChatSession, id=session_id, user=request.user)
@@ -332,7 +333,7 @@ class AskView(APIView):
             text=question_text,
         )
 
-        retrieval = retrieve_context(question=question_text, user=request.user)
+        retrieval = retrieve_context(question=question_text, user=request.user, force_web=force_web)
         is_academic = bool(retrieval.context or retrieval.source_type in {"kb", "web", "mixed"})
         result = ask_ai(question_text, topic_context=retrieval.context, is_academic=is_academic)
         ChatMessage.objects.create(

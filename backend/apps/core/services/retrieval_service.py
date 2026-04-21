@@ -9,10 +9,8 @@ from django.conf import settings
 from backend.apps.core.models import KnowledgeBase, KnowledgeBaseChunk, User
 from backend.apps.core.services.chunk_service import sync_document_chunks
 
-try:
-    from tavily import TavilyClient
-except ImportError:  # pragma: no cover - optional dependency during local setup
-    TavilyClient = None
+from tavily import TavilyClient
+
 
 
 @dataclass
@@ -218,9 +216,8 @@ def _ensure_user_chunks(user: User) -> None:
         )
 
 
-def retrieve_context(question: str, user: User) -> RetrievalPayload:
+def retrieve_context(question: str, user: User, force_web: bool = False) -> RetrievalPayload:
     terms = _question_terms(question)
-    force_web = _is_live_info_query(question)
 
     if force_web:
         unavailable_reason = _web_fallback_unavailable_reason()
@@ -273,8 +270,6 @@ def retrieve_context(question: str, user: User) -> RetrievalPayload:
     _ensure_user_chunks(user)
 
     top_k = getattr(settings, "KB_TOP_K", 4)
-    threshold = getattr(settings, "KB_CONFIDENCE_THRESHOLD", 0.45)
-
     scored_chunks: list[tuple[KnowledgeBaseChunk, float]] = []
     chunks = KnowledgeBaseChunk.objects.filter(knowledge_base__user=user).select_related("knowledge_base")
 
@@ -306,29 +301,14 @@ def retrieve_context(question: str, user: User) -> RetrievalPayload:
     confidence = round(sum(score for _, score in selected) / len(selected), 4) if selected else 0.0
 
     fallback_used = False
-    web_citations: list[dict] = []
-    web_context = ""
-    if force_web or confidence < threshold:
-        web_citations = _fetch_web_results(question, max_results=3)
-        fallback_used = bool(web_citations)
-        web_context = "\n\n".join(
-            f"[WEB:{item['title']}] {item['snippet']}"
-            for item in web_citations
-        )
+    citations = kb_citations
 
-    citations = kb_citations + web_citations
-
-    if kb_citations and web_citations:
-        source_type = "mixed"
-    elif kb_citations:
+    if kb_citations:
         source_type = "kb"
-    elif web_citations:
-        source_type = "web"
     else:
         source_type = "none"
 
-    context_parts = [part for part in [kb_context, web_context] if part]
-    context = "\n\n".join(context_parts) if context_parts else None
+    context = kb_context or None
 
     return RetrievalPayload(
         context=context,

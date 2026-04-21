@@ -111,6 +111,7 @@ class StudyRecommendationSerializer(serializers.ModelSerializer):
 class AskSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=2000)
     session_id = serializers.IntegerField(required=False)
+    force_web = serializers.BooleanField(required=False, default=False)
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):

@@ -13,6 +13,7 @@ export default function ChatTutorPage() {
   const [currentSessionId, setCurrentSessionId] = useState(null)
   const [messages, setMessages] = useState(starterMessages)
   const [question, setQuestion] = useState('')
+  const [forceWeb, setForceWeb] = useState(false)
   const [loading, setLoading] = useState(false)
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [error, setError] = useState('')
@@ -22,6 +23,7 @@ export default function ChatTutorPage() {
     setMessages(starterMessages)
     setQuestion('')
     setError('')
+    setForceWeb(false)
   }
 
   async function loadSessions() {
@@ -114,6 +116,7 @@ export default function ChatTutorPage() {
       const payload = {
         question: prompt,
         ...(currentSessionId ? { session_id: currentSessionId } : {}),
+        force_web: forceWeb,
       }
       const { data } = await api.post('/ai/ask', payload)
 
@@ -238,9 +241,23 @@ export default function ChatTutorPage() {
           </div>
 
           <form className="form-row" style={{ marginTop: 20 }} onSubmit={handleSubmit}>
-            <input className="input" placeholder="Ask an academic question..." value={question} onChange={(event) => setQuestion(event.target.value)} />
+            <input className="input" placeholder={forceWeb ? 'Ask for live/current info...' : 'Ask an academic question...'} value={question} onChange={(event) => setQuestion(event.target.value)} />
+            <button
+              type="button"
+              className="button"
+              onClick={() => setForceWeb((current) => !current)}
+              style={{
+                minWidth: 122,
+                background: forceWeb ? 'linear-gradient(135deg, #ffce73, #ff8e3c)' : 'linear-gradient(135deg, #6ea8fe, #2f74ff)',
+              }}
+            >
+              {forceWeb ? 'Web mode: on' : 'Web mode: off'}
+            </button>
             <button className="button" type="submit" disabled={loading}>{loading ? 'Thinking...' : 'Send'}</button>
           </form>
+          <div className="muted" style={{ marginTop: 10, fontSize: 13 }}>
+            {forceWeb ? 'Web mode uses live web sources first.' : 'Turn on web mode to force live web lookup.'}
+          </div>
           {error ? <div style={{ color: '#ff8b92', marginTop: 12 }}>{error}</div> : null}
         </div>
       </div>
