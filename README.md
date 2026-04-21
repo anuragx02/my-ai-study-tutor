@@ -91,4 +91,4 @@ The root `manage.py` is the Django entrypoint; it loads the `backend/` package p
 ```
 
 ## Notes
-The backend has been consolidated into `apps/core`, and the React frontend is the active UI.
+The backend has been consolidated into `apps/core`, and the React frontend is the active UI..
