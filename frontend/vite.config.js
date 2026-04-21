@@ -9,4 +9,4 @@ export default defineConfig(({ command }) => ({
       '/api': 'http://localhost:8000',
     },
   },
-})
+}))
