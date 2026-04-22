@@ -1,5 +1,6 @@
 from collections import Counter
 
+from django.db import DatabaseError, transaction
 from django.db.models import Avg, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -184,6 +185,19 @@ class QuizGenerateView(APIView):
         quiz_topic = focus or "General Study"
         payload = generate_ai_quiz(topic=quiz_topic, difficulty=difficulty, total_questions=total_questions)
 
+        if not isinstance(payload, dict):
+            return Response(
+                {"detail": "Quiz generation failed: AI response was not a JSON object."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        question_items = payload.get("questions")
+        if not isinstance(question_items, list) or not question_items:
+            return Response(
+                {"detail": "Quiz generation failed: AI response did not include questions."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
         topic = Topic.objects.filter(user=request.user).order_by("id").first()
         if not topic:
             return Response(
@@ -191,24 +205,61 @@ class QuizGenerateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        quiz = Quiz.objects.create(
-            topic=topic,
-            difficulty=difficulty,
-            total_questions=total_questions,
-            created_by=request.user,
-        )
+        required_keys = {
+            "question_text",
+            "option_a",
+            "option_b",
+            "option_c",
+            "option_d",
+            "correct_option",
+            "explanation",
+        }
 
-        for item in payload["questions"]:
-            normalized_correct_option = _normalize_quiz_option(item.get("correct_option")) or "A"
-            Question.objects.create(
-                quiz=quiz,
-                question_text=item["question_text"],
-                option_a=item["option_a"],
-                option_b=item["option_b"],
-                option_c=item["option_c"],
-                option_d=item["option_d"],
-                correct_option=normalized_correct_option,
-                explanation=str(item["explanation"]).strip(),
+        for index, item in enumerate(question_items, start=1):
+            if not isinstance(item, dict):
+                return Response(
+                    {"detail": f"Quiz generation failed: question {index} is not an object."},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+            missing = [key for key in required_keys if key not in item]
+            if missing:
+                return Response(
+                    {"detail": f"Quiz generation failed: question {index} missing fields: {', '.join(sorted(missing))}."},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+            normalized_correct_option = _normalize_quiz_option(item.get("correct_option"))
+            if normalized_correct_option not in {"A", "B", "C", "D"}:
+                return Response(
+                    {"detail": f"Quiz generation failed: question {index} has invalid correct_option."},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+
+        try:
+            with transaction.atomic():
+                quiz = Quiz.objects.create(
+                    topic=topic,
+                    difficulty=difficulty,
+                    total_questions=total_questions,
+                    created_by=request.user,
+                )
+
+                for item in question_items:
+                    Question.objects.create(
+                        quiz=quiz,
+                        question_text=item["question_text"],
+                        option_a=item["option_a"],
+                        option_b=item["option_b"],
+                        option_c=item["option_c"],
+                        option_d=item["option_d"],
+                        correct_option=_normalize_quiz_option(item.get("correct_option")),
+                        explanation=str(item["explanation"]).strip(),
+                    )
+        except DatabaseError:
+            return Response(
+                {"detail": "Quiz generation failed due to a database schema mismatch. Run latest migrations on the server and retry."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         return Response(QuizSerializer(quiz).data, status=status.HTTP_201_CREATED)
