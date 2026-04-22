@@ -151,5 +151,3 @@ GROQ_API_BASE = env("GROQ_API_BASE")
 GROQ_MODEL = env("GROQ_MODEL")
 
 WEB_FALLBACK_ENABLED = env.bool("WEB_FALLBACK_ENABLED", default=True)
-TAVILY_API_KEY = env("TAVILY_API_KEY", default="")
-TAVILY_API_BASE = env("TAVILY_API_BASE", default="https://api.tavily.com")

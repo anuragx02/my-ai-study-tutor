@@ -16,23 +16,26 @@ class AIResponse:
 def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = True) -> AIResponse:
     prompt_context = topic_context or "general academic support"
 
-    if topic_context and "Live web data is required" in topic_context:
-        return AIResponse(
-            answer=(
-                "I could not fetch live web data right now for that current-events query. "
-                "Please retry in a moment, and I will check the latest sources."
-            ),
-            examples=[],
-            related_topics=[],
+    if topic_context == "WEB_MODE_ENABLED":
+        client = Groq(api_key=settings.GROQ_API_KEY)
+        response = client.chat.completions.create(
+            model="groq/compound-mini",
+            messages=[
+                {
+                    "role": "user",
+                    "content": question,
+                },
+            ],
         )
+        answer = (response.choices[0].message.content or "").strip()
+        return AIResponse(answer=answer, examples=[], related_topics=[])
 
     client = Groq(api_key=settings.GROQ_API_KEY)
-    system_prompt = """You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving.
-            Focus on accuracy, clarity, and helpful guidance."""
-
-    mode = "academic" if is_academic else "non-academic"
+    system_prompt = (
+        "You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving. "
+        "Focus on accuracy, clarity, and helpful guidance."
+    )
     user_prompt = (
-        f"Mode: {mode}\n"
         f"Topic context: {prompt_context}\n"
         f"Question: {question}\n"
         "Return JSON only."
