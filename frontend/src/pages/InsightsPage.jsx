@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import ProgressChart from '../components/ProgressChart'
 import RecommendationCard from '../components/RecommendationCard'
 import api from '../services/api'
+import { getStoredOpenStudyMinutes, resetStoredOpenStudySeconds } from '../utils/studyTime'
 
 const emptyProgress = {
   quiz_score_trend: [],
@@ -14,6 +15,7 @@ export default function InsightsPage() {
   const [progress, setProgress] = useState(emptyProgress)
   const [recommendations, setRecommendations] = useState([])
   const [clearing, setClearing] = useState(false)
+  const [openStudyMinutes, setOpenStudyMinutes] = useState(0)
 
   async function loadInsights() {
     try {
@@ -43,6 +45,19 @@ export default function InsightsPage() {
     }
   }, [])
 
+  useEffect(() => {
+    setOpenStudyMinutes(getStoredOpenStudyMinutes())
+    const intervalId = window.setInterval(() => {
+      setOpenStudyMinutes(getStoredOpenStudyMinutes())
+    }, 15000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [])
+
+  const totalStudyMinutes = (progress.study_time_minutes ?? 0) + openStudyMinutes
+
   async function handleClearHistory() {
     if (!window.confirm('Clear all quiz attempts? This cannot be undone.')) {
       return
@@ -51,6 +66,8 @@ export default function InsightsPage() {
     setClearing(true)
     try {
       await api.delete('/analytics/history')
+      resetStoredOpenStudySeconds()
+      setOpenStudyMinutes(0)
       setProgress(emptyProgress)
       setRecommendations([])
       alert('Quiz history cleared.')
@@ -68,8 +85,7 @@ export default function InsightsPage() {
 
       <div className="metric-grid" style={{ marginTop: 20 }}>
         <div className="card"><strong>{progress.accuracy ?? 0}%</strong><div className="muted">Accuracy</div></div>
-        <div className="card"><strong>{progress.weak_topics?.length ?? 0}</strong><div className="muted">Weak topics</div></div>
-        <div className="card"><strong>{progress.study_time_minutes ?? 0}</strong><div className="muted">Study minutes</div></div>
+        <div className="card"><strong>{totalStudyMinutes}</strong><div className="muted">Study minutes</div></div>
       </div>
 
       <div style={{ marginTop: 20 }}>

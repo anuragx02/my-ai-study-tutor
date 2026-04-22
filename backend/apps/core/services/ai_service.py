@@ -159,3 +159,29 @@ def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5
             ]
 
     raise ValueError("AI returned invalid JSON") from last_error
+
+
+def generate_answer_explanation(question_text: str, correct_option: str, correct_option_text: str) -> str:
+    client = Groq(api_key=settings.GROQ_API_KEY)
+    response = client.chat.completions.create(
+        model=settings.GROQ_MODEL,
+        temperature=0.2,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a study tutor. Explain why the provided correct option is correct in 2-3 concise sentences. "
+                    "Do not use markdown or bullet points."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (
+                    f"Question: {question_text}\n"
+                    f"Correct option: {correct_option}\n"
+                    f"Correct option text: {correct_option_text}"
+                ),
+            },
+        ],
+    )
+    return (response.choices[0].message.content or "").strip()

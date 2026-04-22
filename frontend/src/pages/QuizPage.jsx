@@ -7,9 +7,11 @@ export default function QuizPage() {
   const [difficulty, setDifficulty] = useState('easy')
   const [totalQuestions, setTotalQuestions] = useState(5)
   const [quiz, setQuiz] = useState(null)
+  const [quizStartedAt, setQuizStartedAt] = useState(null)
   const [answers, setAnswers] = useState({})
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
+  const [activeExplanation, setActiveExplanation] = useState(null)
 
   async function generateQuiz(event) {
     event.preventDefault()
@@ -22,6 +24,7 @@ export default function QuizPage() {
         total_questions: Number(totalQuestions),
       })
       setQuiz(data)
+      setQuizStartedAt(Date.now())
       setAnswers({})
     } catch (requestError) {
       setError(requestError.response?.data?.detail || 'Unable to generate quiz right now.')
@@ -29,9 +32,10 @@ export default function QuizPage() {
   }
 
   async function submitQuiz() {
+    const elapsedSeconds = quizStartedAt ? Math.max(1, Math.floor((Date.now() - quizStartedAt) / 1000)) : 0
     const payload = {
       quiz_id: quiz.id,
-      completion_time: 0,
+      completion_time: elapsedSeconds,
       answers: quiz.questions.map((question) => ({
         question_id: question.id,
         selected_option: answers[question.id],
@@ -100,7 +104,6 @@ export default function QuizPage() {
             <div className="card"><strong>{result.correct_count}</strong><div className="muted">Correct</div></div>
             <div className="card"><strong>{result.incorrect_count}</strong><div className="muted">Incorrect</div></div>
           </div>
-          <p className="muted">Weak topics: {result.weak_topics.join(', ') || 'None'}</p>
           <p style={{ marginTop: 8 }}><strong>Recommendation:</strong> {result.study_recommendation}</p>
 
           <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
@@ -111,8 +114,49 @@ export default function QuizPage() {
                   <div><strong>Your answer:</strong> {review.selected_option || 'Not answered'}{review.selected_option_text ? ` - ${review.selected_option_text}` : ''}</div>
                   <div><strong>Correct answer:</strong> {review.correct_option} - {review.correct_option_text}</div>
                 </div>
+                <button
+                  type="button"
+                  className="button"
+                  style={{ marginTop: 10 }}
+                  onClick={() => setActiveExplanation({
+                    question: review.question_text,
+                    explanation: review.explanation || 'Explanation unavailable for this question right now.',
+                  })}
+                >
+                  Show explanation
+                </button>
               </article>
             ))}
+          </div>
+        </div>
+      ) : null}
+
+      {activeExplanation ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(5, 10, 25, 0.7)',
+            display: 'grid',
+            placeItems: 'center',
+            zIndex: 1000,
+            padding: 16,
+          }}
+          onClick={() => setActiveExplanation(null)}
+        >
+          <div
+            className="card"
+            style={{ maxWidth: 640, width: '100%' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0 }}>Explanation</h3>
+            <p className="muted"><strong>Question:</strong> {activeExplanation.question}</p>
+            <p style={{ marginTop: 10 }}>{activeExplanation.explanation}</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button type="button" className="button" onClick={() => setActiveExplanation(null)}>Close</button>
+            </div>
           </div>
         </div>
       ) : null}

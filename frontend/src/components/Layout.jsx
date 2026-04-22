@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import useStudyTimeTracker from '../hooks/useStudyTimeTracker'
 
 const navItems = [
   { to: '/', label: 'Dashboard' },
@@ -10,6 +11,7 @@ const navItems = [
 
 export default function Layout() {
   const { user, logout } = useAuth()
+  useStudyTimeTracker()
 
   return (
     <div className="shell">

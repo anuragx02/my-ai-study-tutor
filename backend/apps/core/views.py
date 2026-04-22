@@ -36,7 +36,11 @@ from backend.apps.core.serializers import (
     UserPerformanceSerializer,
     UserSerializer,
 )
-from backend.apps.core.services.ai_service import ask_ai, generate_quiz as generate_ai_quiz
+from backend.apps.core.services.ai_service import (
+    ask_ai,
+    generate_answer_explanation,
+    generate_quiz as generate_ai_quiz,
+)
 from backend.apps.core.services.retrieval_service import retrieve_context
 
 
@@ -302,6 +306,7 @@ class QuizSubmitView(generics.CreateAPIView):
         for question in questions:
             selected_option = answer_map.get(question.id)
             correct_option = _normalize_quiz_option(question.correct_option)
+            correct_option_text = _quiz_option_text(question, correct_option)
             is_correct = bool(selected_option and correct_option and selected_option == correct_option)
             if is_correct:
                 correct_count += 1
@@ -313,6 +318,17 @@ class QuizSubmitView(generics.CreateAPIView):
                     }
                 )
 
+            explanation_text = ""
+            if correct_option and correct_option_text:
+                try:
+                    explanation_text = generate_answer_explanation(
+                        question_text=question.question_text,
+                        correct_option=correct_option,
+                        correct_option_text=correct_option_text,
+                    )
+                except Exception:
+                    explanation_text = ""
+
             question_reviews.append(
                 {
                     "question_id": question.id,
@@ -320,9 +336,9 @@ class QuizSubmitView(generics.CreateAPIView):
                     "selected_option": selected_option,
                     "selected_option_text": _quiz_option_text(question, selected_option),
                     "correct_option": correct_option,
-                    "correct_option_text": _quiz_option_text(question, correct_option),
+                    "correct_option_text": correct_option_text,
                     "is_correct": is_correct,
-                    "explanation": question.explanation,
+                    "explanation": explanation_text,
                 }
             )
 
