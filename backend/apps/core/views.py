@@ -72,6 +72,12 @@ def _normalize_quiz_option(value: str | None) -> str | None:
     if compact and compact[0] in {"A", "B", "C", "D"}:
         return compact[0]
 
+    # If we still haven't found a match, try a more permissive pattern:
+    # Look for the first single letter A-D anywhere in the original string
+    for char in str(value).upper():
+        if char in {"A", "B", "C", "D"}:
+            return char
+
     return None
 
 
