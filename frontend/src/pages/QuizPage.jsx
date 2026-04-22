@@ -111,9 +111,6 @@ export default function QuizPage() {
                   <div><strong>Your answer:</strong> {review.selected_option || 'Not answered'}{review.selected_option_text ? ` - ${review.selected_option_text}` : ''}</div>
                   <div><strong>Correct answer:</strong> {review.correct_option} - {review.correct_option_text}</div>
                 </div>
-                <p className="muted" style={{ marginTop: 8 }}>
-                  {review.explanation}
-                </p>
               </article>
             ))}
           </div>

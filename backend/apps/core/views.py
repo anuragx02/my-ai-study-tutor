@@ -223,7 +223,6 @@ class QuizGenerateView(APIView):
             "option_c",
             "option_d",
             "correct_option",
-            "explanation",
         }
 
         for index, item in enumerate(question_items, start=1):
@@ -265,7 +264,7 @@ class QuizGenerateView(APIView):
                         option_c=item["option_c"],
                         option_d=item["option_d"],
                         correct_option=_normalize_quiz_option(item.get("correct_option")),
-                        explanation=str(item["explanation"]).strip(),
+                        explanation=str(item.get("explanation", "")).strip(),
                     )
         except DatabaseError:
             return Response(

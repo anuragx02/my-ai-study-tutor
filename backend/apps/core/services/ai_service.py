@@ -85,8 +85,7 @@ def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5
                 "role": "system",
                 "content": (
                     "Generate a quiz as JSON only. Schema: topic, difficulty, total_questions, questions. "
-                    "Each question must have question_text, option_a, option_b, option_c, option_d, correct_option, explanation. "
-                    "The explanation must be 1-2 concise sentences describing why the correct option is right."
+                    "Each question must have question_text, option_a, option_b, option_c, option_d, correct_option."
                 ),
             },
             {
