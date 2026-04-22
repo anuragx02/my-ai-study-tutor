@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -11,6 +12,42 @@ class AIResponse:
     answer: str
     examples: list[str]
     related_topics: list[str]
+
+
+def _extract_json_payload(content: str) -> str:
+    text = (content or "").strip()
+    if not text:
+        raise ValueError("Empty AI response")
+
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*```$", "", text)
+
+    try:
+        json.loads(text)
+        return text
+    except json.JSONDecodeError:
+        pass
+
+    object_start = text.find("{")
+    object_end = text.rfind("}")
+    array_start = text.find("[")
+    array_end = text.rfind("]")
+
+    candidates = []
+    if object_start != -1 and object_end != -1 and object_end > object_start:
+        candidates.append(text[object_start : object_end + 1])
+    if array_start != -1 and array_end != -1 and array_end > array_start:
+        candidates.append(text[array_start : array_end + 1])
+
+    for candidate in candidates:
+        try:
+            json.loads(candidate)
+            return candidate
+        except json.JSONDecodeError:
+            continue
+
+    raise ValueError("AI response did not contain valid JSON")
 
 
 def ask_ai(
@@ -64,7 +101,7 @@ def ask_ai(
         ],
     )
     content = response.choices[0].message.content or ""
-    payload = json.loads(content.strip())
+    payload = json.loads(_extract_json_payload(content))
 
     parsed = AIResponse(
         answer=str(payload.get("answer", "")).strip(),
@@ -77,22 +114,48 @@ def ask_ai(
 
 def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5) -> dict:
     client = Groq(api_key=settings.GROQ_API_KEY)
-    response = client.chat.completions.create(
-        model=settings.GROQ_MODEL,
-        temperature=0.4,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Generate a quiz as JSON only. Schema: topic, difficulty, total_questions, questions. "
-                    "Each question must have question_text, option_a, option_b, option_c, option_d, correct_option."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"Topic: {topic}\nDifficulty: {difficulty}\nQuestion count: {total_questions}",
-            },
-        ],
-    )
-    content = (response.choices[0].message.content or "").strip()
-    return json.loads(content)
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Generate a quiz as strict JSON only. Do not wrap the response in markdown fences or add any extra text. "
+                "Schema: topic, difficulty, total_questions, questions. "
+                "Each question must have question_text, option_a, option_b, option_c, option_d, correct_option."
+            ),
+        },
+        {
+            "role": "user",
+            "content": f"Topic: {topic}\nDifficulty: {difficulty}\nQuestion count: {total_questions}",
+        },
+    ]
+
+    last_error = None
+    for attempt in range(2):
+        response = client.chat.completions.create(
+            model=settings.GROQ_MODEL,
+            temperature=0.1 if attempt else 0.4,
+            messages=messages,
+        )
+        content = response.choices[0].message.content or ""
+        try:
+            return json.loads(_extract_json_payload(content))
+        except ValueError as error:
+            last_error = error
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "You must respond with valid JSON only. No markdown, no code fences, no commentary. "
+                        "Return a single JSON object matching the required quiz schema."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Fix this invalid response into valid JSON for a quiz about {topic} at {difficulty} difficulty with {total_questions} questions. "
+                        f"Invalid response:\n{content}"
+                    ),
+                },
+            ]
+
+    raise ValueError("AI returned invalid JSON") from last_error
