@@ -13,14 +13,21 @@ class AIResponse:
     related_topics: list[str]
 
 
-def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = True) -> AIResponse:
-    prompt_context = topic_context or "general academic support"
+def ask_ai(
+    question: str,
+    topic_context: str | None = None,
+    conversation_history: list[dict[str, str]] | None = None,
+    is_academic: bool = True,
+) -> AIResponse:
+    prompt_context = topic_context or ""
+    history = conversation_history or []
 
     if topic_context == "WEB_MODE_ENABLED":
         client = Groq(api_key=settings.GROQ_API_KEY)
         response = client.chat.completions.create(
             model="groq/compound-mini",
             messages=[
+                *history,
                 {
                     "role": "user",
                     "content": question,
@@ -49,6 +56,7 @@ def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = 
                 "role": "system",
                 "content": system_prompt,
             },
+            *history,
             {
                 "role": "user",
                 "content": user_prompt,
@@ -56,10 +64,7 @@ def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = 
         ],
     )
     content = response.choices[0].message.content or ""
-    try:
-        payload = json.loads(content.strip())
-    except Exception:
-        payload = {}
+    payload = json.loads(content.strip())
 
     parsed = AIResponse(
         answer=str(payload.get("answer", "")).strip(),
@@ -67,49 +72,36 @@ def ask_ai(question: str, topic_context: str | None = None, is_academic: bool = 
         related_topics=list(payload.get("related_topics", []))[:5],
     )
 
-    if not parsed.answer:
-        fallback_answer = "I can help with that. If you want, share a study topic or question and I will guide you step by step."
-        return AIResponse(answer=fallback_answer, examples=[], related_topics=[])
     return parsed
 
 
 def generate_chat_title(question: str) -> str:
-    default_title = "New Chat"
     question = (question or "").strip()
-    if not question:
-        return default_title
+    client = Groq(api_key=settings.GROQ_API_KEY)
+    response = client.chat.completions.create(
+        model=settings.GROQ_MODEL,
+        temperature=0,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Create a short chat title. Return plain text only, no quotes, no punctuation at the end, "
+                    "2 to 5 words maximum."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Question: {question}",
+            },
+        ],
+    )
+    content = (response.choices[0].message.content or "").strip().strip('"').strip("'")
 
-    fallback = question[:36].strip() or default_title
-    try:
-        client = Groq(api_key=settings.GROQ_API_KEY)
-        response = client.chat.completions.create(
-            model=settings.GROQ_MODEL,
-            temperature=0,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Create a short chat title. Return plain text only, no quotes, no punctuation at the end, "
-                        "2 to 5 words maximum."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": f"Question: {question}",
-                },
-            ],
-        )
-        content = (response.choices[0].message.content or "").strip().strip('"').strip("'")
-        if not content:
-            return fallback
+    words = content.split()
+    if len(words) > 5:
+        content = " ".join(words[:5])
 
-        words = content.split()
-        if len(words) > 5:
-            content = " ".join(words[:5])
-
-        return content[:48].strip() or fallback
-    except Exception:
-        return fallback
+    return content[:48].strip()
 
 
 def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5) -> dict:

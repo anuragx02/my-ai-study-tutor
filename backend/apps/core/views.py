@@ -172,16 +172,15 @@ class QuizGenerateView(APIView):
         quiz_topic = focus or "General Study"
         payload = generate_ai_quiz(topic=quiz_topic, difficulty=difficulty, total_questions=total_questions)
 
-        fallback_topic = Topic.objects.filter(user=request.user).order_by("id").first()
-        if not fallback_topic:
-            fallback_topic, _ = Topic.objects.get_or_create(
-                user=request.user,
-                title="General Practice",
-                defaults={"difficulty": Topic.Difficulty.EASY},
+        topic = Topic.objects.filter(user=request.user).order_by("id").first()
+        if not topic:
+            return Response(
+                {"detail": "Create a topic before generating a quiz."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         quiz = Quiz.objects.create(
-            topic=fallback_topic,
+            topic=topic,
             difficulty=difficulty,
             total_questions=total_questions,
             created_by=request.user,
@@ -279,6 +278,16 @@ class AskView(APIView):
                 title=generate_chat_title(question_text),
             )
 
+        recent_messages = list(session.messages.order_by("-created_at", "-id")[:20])
+        recent_messages.reverse()
+        conversation_history = [
+            {
+                "role": message.role,
+                "content": message.text,
+            }
+            for message in recent_messages
+        ]
+
         ChatMessage.objects.create(
             session=session,
             role=ChatMessage.Role.USER,
@@ -289,7 +298,12 @@ class AskView(APIView):
         # Default to academic tutoring even when KB has no match,
         # so the model can still answer directly without web lookup.
         is_academic = True
-        result = ask_ai(question_text, topic_context=retrieval.context, is_academic=is_academic)
+        result = ask_ai(
+            question_text,
+            topic_context=retrieval.context,
+            conversation_history=conversation_history,
+            is_academic=is_academic,
+        )
         ChatMessage.objects.create(
             session=session,
             role=ChatMessage.Role.ASSISTANT,
@@ -308,7 +322,6 @@ class AskView(APIView):
                 "citations": retrieval.citations,
                 "retrieval_confidence": retrieval.confidence,
                 "source_type": retrieval.source_type,
-                "fallback_used": retrieval.fallback_used,
                 "session_id": session.id,
             },
             status=status.HTTP_200_OK,
