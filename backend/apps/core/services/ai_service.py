@@ -75,35 +75,6 @@ def ask_ai(
     return parsed
 
 
-def generate_chat_title(question: str) -> str:
-    question = (question or "").strip()
-    client = Groq(api_key=settings.GROQ_API_KEY)
-    response = client.chat.completions.create(
-        model=settings.GROQ_MODEL,
-        temperature=0,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Create a short chat title. Return plain text only, no quotes, no punctuation at the end, "
-                    "2 to 5 words maximum."
-                ),
-            },
-            {
-                "role": "user",
-                "content": f"Question: {question}",
-            },
-        ],
-    )
-    content = (response.choices[0].message.content or "").strip().strip('"').strip("'")
-
-    words = content.split()
-    if len(words) > 5:
-        content = " ".join(words[:5])
-
-    return content[:48].strip()
-
-
 def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5) -> dict:
     client = Groq(api_key=settings.GROQ_API_KEY)
     response = client.chat.completions.create(
@@ -114,7 +85,8 @@ def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5
                 "role": "system",
                 "content": (
                     "Generate a quiz as JSON only. Schema: topic, difficulty, total_questions, questions. "
-                    "Each question must have question_text, option_a, option_b, option_c, option_d, correct_option."
+                    "Each question must have question_text, option_a, option_b, option_c, option_d, correct_option, explanation. "
+                    "The explanation must be 1-2 concise sentences describing why the correct option is right."
                 ),
             },
             {

@@ -101,6 +101,22 @@ export default function QuizPage() {
             <div className="card"><strong>{result.incorrect_count}</strong><div className="muted">Incorrect</div></div>
           </div>
           <p className="muted">Weak topics: {result.weak_topics.join(', ') || 'None'}</p>
+          <p style={{ marginTop: 8 }}><strong>Recommendation:</strong> {result.study_recommendation}</p>
+
+          <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
+            {(result.question_reviews || []).map((review, index) => (
+              <article key={review.question_id} className="card" style={{ borderColor: review.is_correct ? 'rgba(60, 197, 131, 0.45)' : 'rgba(255, 139, 146, 0.45)' }}>
+                <strong>{index + 1}. {review.question_text}</strong>
+                <div style={{ marginTop: 8 }}>
+                  <div><strong>Your answer:</strong> {review.selected_option || 'Not answered'}{review.selected_option_text ? ` - ${review.selected_option_text}` : ''}</div>
+                  <div><strong>Correct answer:</strong> {review.correct_option} - {review.correct_option_text}</div>
+                </div>
+                <p className="muted" style={{ marginTop: 8 }}>
+                  {review.explanation}
+                </p>
+              </article>
+            ))}
+          </div>
         </div>
       ) : null}
     </section>

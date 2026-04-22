@@ -44,7 +44,7 @@ class QuestionSerializer(serializers.ModelSerializer):
             "option_b",
             "option_c",
             "option_d",
-            "correct_option",
+            "explanation",
         ]
 
 

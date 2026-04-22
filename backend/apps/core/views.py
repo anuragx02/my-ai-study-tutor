@@ -35,7 +35,7 @@ from backend.apps.core.serializers import (
     UserPerformanceSerializer,
     UserSerializer,
 )
-from backend.apps.core.services.ai_service import ask_ai, generate_chat_title, generate_quiz as generate_ai_quiz
+from backend.apps.core.services.ai_service import ask_ai, generate_quiz as generate_ai_quiz
 from backend.apps.core.services.retrieval_service import retrieve_context
 
 
@@ -72,6 +72,18 @@ def _normalize_quiz_option(value: str | None) -> str | None:
         return compact[0]
 
     return None
+
+
+def _quiz_option_text(question: Question, option: str | None) -> str:
+    if option == "A":
+        return question.option_a
+    if option == "B":
+        return question.option_b
+    if option == "C":
+        return question.option_c
+    if option == "D":
+        return question.option_d
+    return ""
 
 
 class RegisterView(generics.CreateAPIView):
@@ -196,6 +208,7 @@ class QuizGenerateView(APIView):
                 option_c=item["option_c"],
                 option_d=item["option_d"],
                 correct_option=normalized_correct_option,
+                explanation=str(item["explanation"]).strip(),
             )
 
         return Response(QuizSerializer(quiz).data, status=status.HTTP_201_CREATED)
@@ -218,10 +231,12 @@ class QuizSubmitView(generics.CreateAPIView):
 
         correct_count = 0
         incorrect_questions = []
+        question_reviews = []
         for question in questions:
             selected_option = answer_map.get(question.id)
             correct_option = _normalize_quiz_option(question.correct_option)
-            if selected_option and correct_option and selected_option == correct_option:
+            is_correct = bool(selected_option and correct_option and selected_option == correct_option)
+            if is_correct:
                 correct_count += 1
             else:
                 incorrect_questions.append(
@@ -230,6 +245,19 @@ class QuizSubmitView(generics.CreateAPIView):
                         "topic": quiz.topic.title,
                     }
                 )
+
+            question_reviews.append(
+                {
+                    "question_id": question.id,
+                    "question_text": question.question_text,
+                    "selected_option": selected_option,
+                    "selected_option_text": _quiz_option_text(question, selected_option),
+                    "correct_option": correct_option,
+                    "correct_option_text": _quiz_option_text(question, correct_option),
+                    "is_correct": is_correct,
+                    "explanation": question.explanation,
+                }
+            )
 
         total_questions = len(questions) or 1
         score = round((correct_count / total_questions) * 100, 2)
@@ -240,6 +268,12 @@ class QuizSubmitView(generics.CreateAPIView):
             completion_time=serializer.validated_data["completion_time"],
         )
 
+        weak_topics = sorted({item["topic"] for item in incorrect_questions})
+        if weak_topics:
+            recommendation = f"Focus next on: {', '.join(weak_topics)}. Review the incorrect questions and retake a quiz on these topics."
+        else:
+            recommendation = "Great work. Try a harder quiz or a new topic to keep improving."
+
         return Response(
             {
                 "performance": UserPerformanceSerializer(performance).data,
@@ -247,8 +281,10 @@ class QuizSubmitView(generics.CreateAPIView):
                 "accuracy": score,
                 "correct_count": correct_count,
                 "incorrect_count": len(incorrect_questions),
-                "weak_topics": sorted({item["topic"] for item in incorrect_questions}),
+                "weak_topics": weak_topics,
                 "incorrect_questions": incorrect_questions,
+                "question_reviews": question_reviews,
+                "study_recommendation": recommendation,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -273,9 +309,10 @@ class AskView(APIView):
         if session_id:
             session = get_object_or_404(ChatSession, id=session_id, user=request.user)
         else:
+            title = question_text.strip()[:48]
             session = ChatSession.objects.create(
                 user=request.user,
-                title=generate_chat_title(question_text),
+                title=title,
             )
 
         recent_messages = list(session.messages.order_by("-created_at", "-id")[:20])
