@@ -183,7 +183,18 @@ class QuizGenerateView(APIView):
 
         focus = serializer.validated_data.get("focus", "").strip()
         quiz_topic = focus or "General Study"
-        payload = generate_ai_quiz(topic=quiz_topic, difficulty=difficulty, total_questions=total_questions)
+        try:
+            payload = generate_ai_quiz(topic=quiz_topic, difficulty=difficulty, total_questions=total_questions)
+        except ValueError:
+            return Response(
+                {"detail": "Quiz generation failed: AI returned invalid JSON. Retry once."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        except Exception:
+            return Response(
+                {"detail": "Quiz generation failed: AI provider request failed. Retry once."},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
         if not isinstance(payload, dict):
             return Response(
