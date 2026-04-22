@@ -42,27 +42,6 @@ class Topic(models.Model):
         return self.title
 
 
-class StudyMaterial(models.Model):
-    class MaterialType(models.TextChoices):
-        PDF = "pdf", "PDF"
-        VIDEO = "video", "Video"
-        NOTES = "notes", "Notes"
-
-    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="materials")
-    title = models.CharField(max_length=200)
-    material_type = models.CharField(max_length=20, choices=MaterialType.choices)
-    content_url = models.URLField(blank=True)
-    summary = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["title"]
-        db_table = "materials_studymaterial"
-
-    def __str__(self) -> str:
-        return self.title
-
-
 class Quiz(models.Model):
     class Difficulty(models.TextChoices):
         EASY = "easy", "Easy"
@@ -91,7 +70,6 @@ class Question(models.Model):
     option_c = models.CharField(max_length=255)
     option_d = models.CharField(max_length=255)
     correct_option = models.CharField(max_length=1)
-    explanation = models.TextField(blank=True)
 
     class Meta:
         ordering = ["id"]
@@ -108,16 +86,6 @@ class UserPerformance(models.Model):
     class Meta:
         ordering = ["-attempt_date"]
         db_table = "quiz_userperformance"
-
-
-class StudyRecommendation(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="recommendations")
-    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="recommendations")
-    suggested_material = models.CharField(max_length=255)
-    date_generated = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = "recommendations_studyrecommendation"
 
 
 class ChatSession(models.Model):

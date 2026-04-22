@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import QuizCard from '../components/QuizCard'
 import api from '../services/api'
 
@@ -7,11 +7,11 @@ export default function QuizPage() {
   const [difficulty, setDifficulty] = useState('easy')
   const [totalQuestions, setTotalQuestions] = useState(5)
   const [quiz, setQuiz] = useState(null)
-  const [quizStartedAt, setQuizStartedAt] = useState(null)
   const [answers, setAnswers] = useState({})
   const [result, setResult] = useState(null)
   const [error, setError] = useState('')
   const [activeExplanation, setActiveExplanation] = useState(null)
+  const startedAtRef = useRef(0)
 
   async function generateQuiz(event) {
     event.preventDefault()
@@ -24,15 +24,15 @@ export default function QuizPage() {
         total_questions: Number(totalQuestions),
       })
       setQuiz(data)
-      setQuizStartedAt(Date.now())
+      startedAtRef.current = Date.now()
       setAnswers({})
-    } catch (requestError) {
-      setError(requestError.response?.data?.detail || 'Unable to generate quiz right now.')
+    } catch {
+      setError('Request failed.')
     }
   }
 
   async function submitQuiz() {
-    const elapsedSeconds = quizStartedAt ? Math.max(1, Math.floor((Date.now() - quizStartedAt) / 1000)) : 0
+    const elapsedSeconds = Math.max(1, Math.floor((Date.now() - startedAtRef.current) / 1000))
     const payload = {
       quiz_id: quiz.id,
       completion_time: elapsedSeconds,
@@ -51,12 +51,7 @@ export default function QuizPage() {
       <p className="muted">Generate quizzes by topic and submit for scoring.</p>
 
       <form className="feature-grid" style={{ marginTop: 20 }} onSubmit={generateQuiz}>
-        <input
-          className="input"
-          placeholder="Quiz focus (optional, e.g. thermodynamics, calculus, data structures)"
-          value={focus}
-          onChange={(event) => setFocus(event.target.value)}
-        />
+        <input className="input" placeholder="Quiz focus (optional)" value={focus} onChange={(event) => setFocus(event.target.value)} />
         <select className="select" value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
           <option value="easy">Easy</option>
           <option value="medium">Medium</option>
@@ -99,12 +94,8 @@ export default function QuizPage() {
       {result ? (
         <div className="card" style={{ marginTop: 20 }}>
           <h3>Result</h3>
-          <div className="metric-grid">
-            <div className="card"><strong>{result.score}%</strong><div className="muted">Score</div></div>
-            <div className="card"><strong>{result.correct_count}</strong><div className="muted">Correct</div></div>
-            <div className="card"><strong>{result.incorrect_count}</strong><div className="muted">Incorrect</div></div>
-          </div>
-          <p style={{ marginTop: 8 }}><strong>Recommendation:</strong> {result.study_recommendation}</p>
+          <p><strong>{result.score}%</strong> score • {result.correct_count} correct • {result.incorrect_count} incorrect</p>
+          <p><strong>Recommendation:</strong> {result.study_recommendation}</p>
 
           <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
             {(result.question_reviews || []).map((review, index) => (
@@ -120,7 +111,7 @@ export default function QuizPage() {
                   style={{ marginTop: 10 }}
                   onClick={() => setActiveExplanation({
                     question: review.question_text,
-                    explanation: review.explanation || 'Explanation unavailable for this question right now.',
+                    explanation: review.explanation,
                   })}
                 >
                   Show explanation
@@ -132,29 +123,12 @@ export default function QuizPage() {
       ) : null}
 
       {activeExplanation ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(5, 10, 25, 0.7)',
-            display: 'grid',
-            placeItems: 'center',
-            zIndex: 1000,
-            padding: 16,
-          }}
-          onClick={() => setActiveExplanation(null)}
-        >
-          <div
-            className="card"
-            style={{ maxWidth: 640, width: '100%' }}
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div role="dialog" aria-modal="true" style={{ position: 'fixed', inset: 0, background: 'rgba(5, 10, 25, 0.7)', display: 'grid', placeItems: 'center', zIndex: 1000, padding: 16 }} onClick={() => setActiveExplanation(null)}>
+          <div className="card" style={{ maxWidth: 640, width: '100%' }} onClick={(event) => event.stopPropagation()}>
             <h3 style={{ marginTop: 0 }}>Explanation</h3>
             <p className="muted"><strong>Question:</strong> {activeExplanation.question}</p>
-            <p style={{ marginTop: 10 }}>{activeExplanation.explanation}</p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+            <p>{activeExplanation.explanation}</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button type="button" className="button" onClick={() => setActiveExplanation(null)}>Close</button>
             </div>
           </div>

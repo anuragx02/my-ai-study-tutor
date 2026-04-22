@@ -3,8 +3,8 @@ export default function AboutPage() {
     <section className="card">
       <h2 className="page-title">About</h2>
       <p className="muted">
-        AI Study Tutor is a student-focused learning assistant that helps you learn from your own study material,
-        generate quizzes, and track performance.
+        AI Study Tutor is a student-focused learning assistant that helps you chat, generate quizzes,
+        and track performance.
       </p>
       <div className="card" style={{ marginTop: 20 }}>
         <h3 style={{ marginTop: 0 }}>Creator</h3>

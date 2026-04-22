@@ -1,5 +1,3 @@
-from collections import Counter
-
 from django.db import DatabaseError, transaction
 from django.db.models import Avg, Sum
 from django.shortcuts import get_object_or_404
@@ -16,11 +14,9 @@ from backend.apps.core.models import (
     ChatSession,
     Question,
     Quiz,
-    StudyMaterial,
     Topic,
     UserPerformance,
 )
-from backend.apps.core.permissions import IsStaffUser
 from backend.apps.core.serializers import (
     AskSerializer,
     ChatMessageSerializer,
@@ -31,70 +27,19 @@ from backend.apps.core.serializers import (
     QuizGenerateSerializer,
     QuizSerializer,
     QuizSubmitSerializer,
-    StudyMaterialSerializer,
     TopicSerializer,
     UserPerformanceSerializer,
     UserSerializer,
+    OCRSerializer,
 )
 from backend.apps.core.services.ai_service import (
     ask_ai,
     generate_answer_explanation,
     generate_quiz as generate_ai_quiz,
+    extract_text_from_image,
+    extract_equation_to_latex,
 )
 from backend.apps.core.services.retrieval_service import retrieve_context
-
-
-def _normalize_quiz_option(value: str | None) -> str | None:
-    if not value:
-        return None
-
-    normalized = str(value).strip().upper()
-    if normalized in {"A", "B", "C", "D"}:
-        return normalized
-
-    compact = normalized.replace(" ", "")
-    mappings = {
-        "OPTIONA": "A",
-        "OPTIONB": "B",
-        "OPTIONC": "C",
-        "OPTIOND": "D",
-        "A)": "A",
-        "B)": "B",
-        "C)": "C",
-        "D)": "D",
-        "A.": "A",
-        "B.": "B",
-        "C.": "C",
-        "D.": "D",
-    }
-    if compact in mappings:
-        return mappings[compact]
-
-    if compact.startswith("OPTION") and len(compact) > 6 and compact[6] in {"A", "B", "C", "D"}:
-        return compact[6]
-
-    if compact and compact[0] in {"A", "B", "C", "D"}:
-        return compact[0]
-
-    # If we still haven't found a match, try a more permissive pattern:
-    # Look for the first single letter A-D anywhere in the original string
-    for char in str(value).upper():
-        if char in {"A", "B", "C", "D"}:
-            return char
-
-    return None
-
-
-def _quiz_option_text(question: Question, option: str | None) -> str:
-    if option == "A":
-        return question.option_a
-    if option == "B":
-        return question.option_b
-    if option == "C":
-        return question.option_c
-    if option == "D":
-        return question.option_d
-    return ""
 
 
 class RegisterView(generics.CreateAPIView):
@@ -115,7 +60,6 @@ class RegisterView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
-
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -132,7 +76,6 @@ class LoginView(APIView):
             }
         )
 
-
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -146,7 +89,6 @@ class LogoutView(APIView):
             pass
         return Response(status=status.HTTP_205_RESET_CONTENT)
 
-
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -159,7 +101,6 @@ class ProfileView(APIView):
         serializer.save()
         return Response(serializer.data)
 
-
 class TopicListCreateView(generics.ListCreateAPIView):
     serializer_class = TopicSerializer
     permission_classes = [IsAuthenticated]
@@ -169,18 +110,6 @@ class TopicListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-
-
-class StudyMaterialListCreateView(generics.ListCreateAPIView):
-    queryset = StudyMaterial.objects.select_related("topic")
-    serializer_class = StudyMaterialSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_permissions(self):
-        if self.request.method.upper() == "POST":
-            return [IsAuthenticated(), IsStaffUser()]
-        return super().get_permissions()
-
 
 class QuizGenerateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -234,6 +163,21 @@ class QuizGenerateView(APIView):
             "option_d",
             "correct_option",
         }
+        option_letters = {"A", "B", "C", "D"}
+        option_mappings = {
+            "OPTIONA": "A",
+            "OPTIONB": "B",
+            "OPTIONC": "C",
+            "OPTIOND": "D",
+            "A)": "A",
+            "B)": "B",
+            "C)": "C",
+            "D)": "D",
+            "A.": "A",
+            "B.": "B",
+            "C.": "C",
+            "D.": "D",
+        }
 
         for index, item in enumerate(question_items, start=1):
             if not isinstance(item, dict):
@@ -249,8 +193,17 @@ class QuizGenerateView(APIView):
                     status=status.HTTP_502_BAD_GATEWAY,
                 )
 
-            normalized_correct_option = _normalize_quiz_option(item.get("correct_option"))
-            if normalized_correct_option not in {"A", "B", "C", "D"}:
+            option_value = item.get("correct_option")
+            normalized = str(option_value or "").strip().upper()
+            compact = normalized.replace(" ", "")
+            normalized_correct_option = (
+                normalized if normalized in option_letters
+                else option_mappings.get(compact)
+                or (compact[6] if compact.startswith("OPTION") and len(compact) > 6 and compact[6] in option_letters else None)
+                or (compact[0] if compact and compact[0] in option_letters else None)
+                or next((char for char in normalized if char in option_letters), None)
+            )
+            if normalized_correct_option not in option_letters:
                 return Response(
                     {"detail": f"Quiz generation failed: question {index} has invalid correct_option."},
                     status=status.HTTP_502_BAD_GATEWAY,
@@ -266,6 +219,16 @@ class QuizGenerateView(APIView):
                 )
 
                 for item in question_items:
+                    option_value = item.get("correct_option")
+                    normalized = str(option_value or "").strip().upper()
+                    compact = normalized.replace(" ", "")
+                    normalized_correct_option = (
+                        normalized if normalized in option_letters
+                        else option_mappings.get(compact)
+                        or (compact[6] if compact.startswith("OPTION") and len(compact) > 6 and compact[6] in option_letters else None)
+                        or (compact[0] if compact and compact[0] in option_letters else None)
+                        or next((char for char in normalized if char in option_letters), None)
+                    )
                     Question.objects.create(
                         quiz=quiz,
                         question_text=item["question_text"],
@@ -273,7 +236,7 @@ class QuizGenerateView(APIView):
                         option_b=item["option_b"],
                         option_c=item["option_c"],
                         option_d=item["option_d"],
-                        correct_option=_normalize_quiz_option(item.get("correct_option")),
+                        correct_option=normalized_correct_option,
                         explanation=str(item.get("explanation", "")).strip(),
                     )
         except DatabaseError:
@@ -283,7 +246,6 @@ class QuizGenerateView(APIView):
             )
 
         return Response(QuizSerializer(quiz).data, status=status.HTTP_201_CREATED)
-
 
 class QuizSubmitView(generics.CreateAPIView):
     serializer_class = UserPerformanceSerializer
@@ -295,18 +257,57 @@ class QuizSubmitView(generics.CreateAPIView):
 
         quiz = get_object_or_404(Quiz.objects.prefetch_related("questions"), pk=serializer.validated_data["quiz_id"])
         questions = list(quiz.questions.all())
-        answer_map = {
-            answer["question_id"]: _normalize_quiz_option(answer["selected_option"])
-            for answer in serializer.validated_data["answers"]
+        option_letters = {"A", "B", "C", "D"}
+        option_mappings = {
+            "OPTIONA": "A",
+            "OPTIONB": "B",
+            "OPTIONC": "C",
+            "OPTIOND": "D",
+            "A)": "A",
+            "B)": "B",
+            "C)": "C",
+            "D)": "D",
+            "A.": "A",
+            "B.": "B",
+            "C.": "C",
+            "D.": "D",
         }
+        answer_map = {}
+        for answer in serializer.validated_data["answers"]:
+            option_value = answer["selected_option"]
+            normalized = str(option_value or "").strip().upper()
+            compact = normalized.replace(" ", "")
+            normalized_selected_option = (
+                normalized if normalized in option_letters
+                else option_mappings.get(compact)
+                or (compact[6] if compact.startswith("OPTION") and len(compact) > 6 and compact[6] in option_letters else None)
+                or (compact[0] if compact and compact[0] in option_letters else None)
+                or next((char for char in normalized if char in option_letters), None)
+            )
+            answer_map[answer["question_id"]] = normalized_selected_option
 
         correct_count = 0
         incorrect_questions = []
         question_reviews = []
         for question in questions:
             selected_option = answer_map.get(question.id)
-            correct_option = _normalize_quiz_option(question.correct_option)
-            correct_option_text = _quiz_option_text(question, correct_option)
+            option_value = question.correct_option
+            normalized = str(option_value or "").strip().upper()
+            compact = normalized.replace(" ", "")
+            correct_option = (
+                normalized if normalized in option_letters
+                else option_mappings.get(compact)
+                or (compact[6] if compact.startswith("OPTION") and len(compact) > 6 and compact[6] in option_letters else None)
+                or (compact[0] if compact and compact[0] in option_letters else None)
+                or next((char for char in normalized if char in option_letters), None)
+            )
+            option_text_by_key = {
+                "A": question.option_a,
+                "B": question.option_b,
+                "C": question.option_c,
+                "D": question.option_d,
+            }
+            correct_option_text = option_text_by_key.get(correct_option, "")
             is_correct = bool(selected_option and correct_option and selected_option == correct_option)
             if is_correct:
                 correct_count += 1
@@ -334,7 +335,7 @@ class QuizSubmitView(generics.CreateAPIView):
                     "question_id": question.id,
                     "question_text": question.question_text,
                     "selected_option": selected_option,
-                    "selected_option_text": _quiz_option_text(question, selected_option),
+                    "selected_option_text": option_text_by_key.get(selected_option, ""),
                     "correct_option": correct_option,
                     "correct_option_text": correct_option_text,
                     "is_correct": is_correct,
@@ -364,7 +365,6 @@ class QuizSubmitView(generics.CreateAPIView):
                 "accuracy": score,
                 "correct_count": correct_count,
                 "incorrect_count": len(incorrect_questions),
-                "weak_topics": weak_topics,
                 "incorrect_questions": incorrect_questions,
                 "question_reviews": question_reviews,
                 "study_recommendation": recommendation,
@@ -372,12 +372,10 @@ class QuizSubmitView(generics.CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
-
 class QuizListView(generics.ListAPIView):
     queryset = Quiz.objects.select_related("topic", "created_by").prefetch_related("questions")
     serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated]
-
 
 class AskView(APIView):
     permission_classes = [IsAuthenticated]
@@ -415,8 +413,6 @@ class AskView(APIView):
         )
 
         retrieval = retrieve_context(question=question_text, user=request.user, force_web=force_web)
-        # Default to academic tutoring even when KB has no match,
-        # so the model can still answer directly without web lookup.
         is_academic = True
         result = ask_ai(
             question_text,
@@ -447,14 +443,12 @@ class AskView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
 class ChatSessionListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         sessions = ChatSession.objects.filter(user=request.user).prefetch_related("messages")
         return Response(ChatSessionSerializer(sessions, many=True).data, status=status.HTTP_200_OK)
-
 
 class ChatSessionDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -474,7 +468,6 @@ class ChatSessionDetailView(APIView):
         session.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
 class ProgressView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -485,20 +478,14 @@ class ProgressView(APIView):
             .order_by("attempt_date")
         )
         score_values = [round(float(score), 2) for score in performances.values_list("score", flat=True)]
-        weak_topics_counter = Counter()
-        for performance in performances:
-            if performance.score < 70:
-                weak_topics_counter[performance.quiz.topic.title] += 1
 
         return Response(
             {
                 "quiz_score_trend": score_values[-5:],
                 "accuracy": round(performances.aggregate(avg=Avg("score"))["avg"] or 0, 2),
-                "weak_topics": [topic for topic, _ in weak_topics_counter.most_common(5)],
                 "study_time_minutes": int((performances.aggregate(total=Sum("completion_time"))["total"] or 0) / 60),
             }
         )
-
 
 class HistoryDeleteView(APIView):
     permission_classes = [IsAuthenticated]
@@ -509,7 +496,6 @@ class HistoryDeleteView(APIView):
             {"deleted_records": deleted_count, "message": "Quiz history cleared"},
             status=status.HTTP_200_OK,
         )
-
 
 class RecommendationView(APIView):
     permission_classes = [IsAuthenticated]
@@ -544,3 +530,60 @@ class RecommendationView(APIView):
                 }
             ]
         )
+
+class OCRView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = OCRSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        image_url = serializer.validated_data["image_url"]
+        instruction = serializer.validated_data.get("instruction", "Extract all text from this image")
+
+        try:
+            extracted_text = extract_text_from_image(image_url, instruction)
+            return Response(
+                {
+                    "success": True,
+                    "text": extracted_text,
+                    "image_url": image_url,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {
+                    "success": False,
+                    "error": str(e),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+class EquationOCRView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = OCRSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        image_url = serializer.validated_data["image_url"]
+
+        try:
+            latex = extract_equation_to_latex(image_url)
+            return Response(
+                {
+                    "success": True,
+                    "latex": latex,
+                    "image_url": image_url,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {
+                    "success": False,
+                    "error": str(e),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )

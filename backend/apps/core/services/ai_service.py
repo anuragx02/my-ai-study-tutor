@@ -1,9 +1,7 @@
 import json
-import re
 from dataclasses import dataclass
 
 from django.conf import settings
-
 from groq import Groq
 
 
@@ -14,40 +12,15 @@ class AIResponse:
     related_topics: list[str]
 
 
-def _extract_json_payload(content: str) -> str:
-    text = (content or "").strip()
-    if not text:
-        raise ValueError("Empty AI response")
-
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
-        text = re.sub(r"\s*```$", "", text)
-
-    try:
-        json.loads(text)
-        return text
-    except json.JSONDecodeError:
-        pass
-
-    object_start = text.find("{")
-    object_end = text.rfind("}")
-    array_start = text.find("[")
-    array_end = text.rfind("]")
-
-    candidates = []
-    if object_start != -1 and object_end != -1 and object_end > object_start:
-        candidates.append(text[object_start : object_end + 1])
-    if array_start != -1 and array_end != -1 and array_end > array_start:
-        candidates.append(text[array_start : array_end + 1])
-
-    for candidate in candidates:
-        try:
-            json.loads(candidate)
-            return candidate
-        except json.JSONDecodeError:
-            continue
-
-    raise ValueError("AI response did not contain valid JSON")
+def _complete(messages: list[dict], model: str | None = None, temperature: float = 0.2, **kwargs) -> str:
+    client = Groq(api_key=settings.GROQ_API_KEY)
+    response = client.chat.completions.create(
+        model=model or settings.GROQ_MODEL,
+        temperature=temperature,
+        messages=messages,
+        **kwargs,
+    )
+    return (response.choices[0].message.content or "").strip()
 
 
 def ask_ai(
@@ -56,123 +29,64 @@ def ask_ai(
     conversation_history: list[dict[str, str]] | None = None,
     is_academic: bool = True,
 ) -> AIResponse:
-    prompt_context = topic_context or ""
     history = conversation_history or []
 
     if topic_context == "WEB_MODE_ENABLED":
-        client = Groq(api_key=settings.GROQ_API_KEY)
-        response = client.chat.completions.create(
+        answer = _complete(
+            [*history, {"role": "user", "content": question}],
             model="groq/compound-mini",
-            messages=[
-                *history,
-                {
-                    "role": "user",
-                    "content": question,
-                },
-            ],
         )
-        answer = (response.choices[0].message.content or "").strip()
         return AIResponse(answer=answer, examples=[], related_topics=[])
 
-    client = Groq(api_key=settings.GROQ_API_KEY)
-    system_prompt = (
-        "You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving. "
-        "Focus on accuracy, clarity, and helpful guidance."
-    )
     user_prompt = (
-        f"Topic context: {prompt_context}\n"
+        f"Topic context: {topic_context or ''}\n"
         f"Question: {question}\n"
         "Return JSON only."
     )
-
-    response = client.chat.completions.create(
-        model=settings.GROQ_MODEL,
-        temperature=0.2,
-        messages=[
-            {
-                "role": "system",
-                "content": system_prompt,
-            },
-            *history,
-            {
-                "role": "user",
-                "content": user_prompt,
-            },
-        ],
+    payload = json.loads(
+        _complete(
+            [
+                {
+                    "role": "system",
+                    "content": "You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving. Focus on accuracy, clarity, and helpful guidance.",
+                },
+                *history,
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.2,
+        )
     )
-    content = response.choices[0].message.content or ""
-    payload = json.loads(_extract_json_payload(content))
-
-    parsed = AIResponse(
+    return AIResponse(
         answer=str(payload.get("answer", "")).strip(),
         examples=list(payload.get("examples", []))[:5],
         related_topics=list(payload.get("related_topics", []))[:5],
     )
 
-    return parsed
-
 
 def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5) -> dict:
-    client = Groq(api_key=settings.GROQ_API_KEY)
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "Generate a quiz as strict JSON only. Do not wrap the response in markdown fences or add any extra text. "
-                "Schema: topic, difficulty, total_questions, questions. "
-                "Each question must have question_text, option_a, option_b, option_c, option_d, correct_option."
-            ),
-        },
-        {
-            "role": "user",
-            "content": f"Topic: {topic}\nDifficulty: {difficulty}\nQuestion count: {total_questions}",
-        },
-    ]
-
-    last_error = None
-    for attempt in range(2):
-        response = client.chat.completions.create(
-            model=settings.GROQ_MODEL,
-            temperature=0.1 if attempt else 0.4,
-            messages=messages,
-        )
-        content = response.choices[0].message.content or ""
-        try:
-            return json.loads(_extract_json_payload(content))
-        except ValueError as error:
-            last_error = error
-            messages = [
+    return json.loads(
+        _complete(
+            [
                 {
                     "role": "system",
-                    "content": (
-                        "You must respond with valid JSON only. No markdown, no code fences, no commentary. "
-                        "Return a single JSON object matching the required quiz schema."
-                    ),
+                    "content": "Generate a quiz as strict JSON only. Schema: topic, difficulty, total_questions, questions. Each question must have question_text, option_a, option_b, option_c, option_d, correct_option.",
                 },
                 {
                     "role": "user",
-                    "content": (
-                        f"Fix this invalid response into valid JSON for a quiz about {topic} at {difficulty} difficulty with {total_questions} questions. "
-                        f"Invalid response:\n{content}"
-                    ),
+                    "content": f"Topic: {topic}\nDifficulty: {difficulty}\nQuestion count: {total_questions}",
                 },
-            ]
-
-    raise ValueError("AI returned invalid JSON") from last_error
+            ],
+            temperature=0.2,
+        )
+    )
 
 
 def generate_answer_explanation(question_text: str, correct_option: str, correct_option_text: str) -> str:
-    client = Groq(api_key=settings.GROQ_API_KEY)
-    response = client.chat.completions.create(
-        model=settings.GROQ_MODEL,
-        temperature=0.2,
-        messages=[
+    return _complete(
+        [
             {
                 "role": "system",
-                "content": (
-                    "You are a study tutor. Explain why the provided correct option is correct in 2-3 concise sentences. "
-                    "Do not use markdown or bullet points."
-                ),
+                "content": "You are a study tutor. Explain why the provided correct option is correct in 2-3 concise sentences. Do not use markdown or bullet points.",
             },
             {
                 "role": "user",
@@ -183,5 +97,46 @@ def generate_answer_explanation(question_text: str, correct_option: str, correct
                 ),
             },
         ],
+        temperature=0.2,
     )
-    return (response.choices[0].message.content or "").strip()
+
+
+def extract_text_from_image(image_url: str, instruction: str = "Extract all text from this image") -> str:
+    return _complete(
+        [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": instruction},
+                    {"type": "image_url", "image_url": {"url": image_url}},
+                ],
+            }
+        ],
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        temperature=1,
+        max_completion_tokens=1024,
+        top_p=1,
+        stream=False,
+    )
+
+
+def extract_equation_to_latex(image_url: str) -> str:
+    return _complete(
+        [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Extract the mathematical equation from this image and convert it to LaTeX format. Return ONLY the LaTeX code (wrapped in $ for inline or $$ for block math). Do not include any explanation or markdown formatting, just the LaTeX equation itself.",
+                    },
+                    {"type": "image_url", "image_url": {"url": image_url}},
+                ],
+            }
+        ],
+        model="meta-llama/llama-4-scout-17b-16e-instruct",
+        temperature=0.3,
+        max_completion_tokens=512,
+        top_p=1,
+        stream=False,
+    )
