@@ -4,6 +4,15 @@ import { fileToDataUrl, isValidImageFile } from '../utils/imageConverter'
 
 const starterMessages = [{ role: 'assistant', text: 'Ask me anything about a topic and I will explain it step by step.' }]
 
+function getApiErrorMessage(error, fallback = 'Request failed.') {
+  const response = error.response?.data
+  if (typeof response?.detail === 'string') return response.detail
+  const firstValue = Object.values(response || {})[0]
+  if (Array.isArray(firstValue) && firstValue[0]) return firstValue[0]
+  if (typeof firstValue === 'string') return firstValue
+  return fallback
+}
+
 export default function ChatTutorPage() {
   const [sessions, setSessions] = useState([])
   const [currentSessionId, setCurrentSessionId] = useState(null)
@@ -42,8 +51,8 @@ export default function ChatTutorPage() {
         source_type: message.source_type,
       }))
       setMessages(serverMessages.length ? serverMessages : starterMessages)
-    } catch {
-      setError('Request failed.')
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError))
     }
   }
 
@@ -66,8 +75,8 @@ export default function ChatTutorPage() {
         setError('')
         setForceWeb(false)
       }
-    } catch {
-      setError('Request failed.')
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError))
     }
   }
 
@@ -108,8 +117,8 @@ export default function ChatTutorPage() {
       const { data } = await api.post('/ai/ocr', { image_url: dataUrl, instruction: "What's in this image? If it contains a math problem, explain it step by step." })
       setPendingImage(dataUrl)
       setPendingImageText(data.text || '')
-    } catch {
-      setError('Request failed.')
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError))
     } finally {
       setProcessingImage(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -139,8 +148,8 @@ export default function ChatTutorPage() {
       await loadSessions()
       setPendingImage('')
       setPendingImageText('')
-    } catch {
-      setError('Request failed.')
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError))
     } finally {
       setLoading(false)
     }

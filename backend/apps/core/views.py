@@ -362,7 +362,7 @@ class AskView(APIView):
     def post(self, request):
         serializer = AskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        question_text = serializer.validated_data["question"]
+        question_text = serializer.validated_data.get("question", "")
         image_context = serializer.validated_data.get("image_context", "")
         session_id = serializer.validated_data.get("session_id")
         force_web = serializer.validated_data.get("force_web", False)
@@ -390,7 +390,7 @@ class AskView(APIView):
         ChatMessage.objects.create(
             session=session,
             role=ChatMessage.Role.USER,
-            text=question_text,
+            text=question_text or "Image attached",
         )
 
         retrieval = retrieve_context(question=question_text or image_context, user=request.user, force_web=force_web)

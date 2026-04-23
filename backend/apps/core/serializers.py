@@ -35,10 +35,19 @@ class ProgressSerializer(serializers.Serializer):
     accuracy = serializers.FloatField()
     study_time_minutes = serializers.IntegerField()
 class AskSerializer(serializers.Serializer):
-    question = serializers.CharField(max_length=2000)
+    question = serializers.CharField(max_length=2000, required=False, allow_blank=True)
     image_context = serializers.CharField(required=False, allow_blank=True)
     session_id = serializers.IntegerField(required=False)
     force_web = serializers.BooleanField(default=False)
+
+    def validate(self, attrs):
+        question = attrs.get("question", "").strip()
+        image_context = attrs.get("image_context", "").strip()
+        if not question and not image_context:
+            raise serializers.ValidationError({"detail": "Ask a question or attach an image."})
+        attrs["question"] = question
+        attrs["image_context"] = image_context
+        return attrs
 class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage

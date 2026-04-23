@@ -61,31 +61,19 @@ def ask_ai(
         )
         return AIResponse(answer=answer, examples=[], related_topics=[])
 
-    user_prompt = (
-        f"Study context: {topic_context or ''}\n"
-        f"Question: {question}\n"
-        "Return JSON only."
+    user_prompt = f"Study context: {topic_context or ''}\nQuestion: {question}".strip()
+    answer = _complete(
+        [
+            {
+                "role": "system",
+                "content": "You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving. Focus on accuracy, clarity, and helpful guidance.",
+            },
+            *history,
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.2,
     )
-    payload = json.loads(
-        _extract_json_payload(
-            _complete(
-                [
-                    {
-                        "role": "system",
-                        "content": "You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving. Focus on accuracy, clarity, and helpful guidance.",
-                    },
-                    *history,
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.2,
-            )
-        )
-    )
-    return AIResponse(
-        answer=str(payload.get("answer", "")).strip(),
-        examples=list(payload.get("examples", []))[:5],
-        related_topics=list(payload.get("related_topics", []))[:5],
-    )
+    return AIResponse(answer=answer, examples=[], related_topics=[])
 
 
 def generate_quiz(focus: str, difficulty: str = "easy", total_questions: int = 5) -> dict:
