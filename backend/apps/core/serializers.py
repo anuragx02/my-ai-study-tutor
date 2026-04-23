@@ -92,5 +92,5 @@ class ProfileSerializer(serializers.ModelSerializer):
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 class OCRSerializer(serializers.Serializer):
-    image_url = serializers.URLField()
+    image_url = serializers.CharField()
     instruction = serializers.CharField(max_length=2000, default="Extract all text from this image")

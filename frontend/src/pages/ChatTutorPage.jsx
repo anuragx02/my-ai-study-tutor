@@ -99,10 +99,9 @@ export default function ChatTutorPage() {
     setError('')
     try {
       const dataUrl = await fileToDataUrl(file)
-      const { data } = await api.post('/ai/ocr/equation', {
-        image_url: dataUrl,
-      })
-      setQuestion((current) => (current ? `${current} ${data.latex}` : data.latex))
+      const { data } = await api.post('/ai/ocr', { image_url: dataUrl, instruction: "What's in this image? If it contains a math problem, explain it step by step." })
+      setMessages((current) => [...current, { role: 'user', text: 'Uploaded image', image: dataUrl }])
+      setQuestion((current) => (current ? `${current} ${data.text}` : data.text))
     } catch {
       setError('Request failed.')
     } finally {
@@ -192,6 +191,7 @@ export default function ChatTutorPage() {
             {messages.map((message, index) => (
               <div key={index} className={`message ${message.role}`}>
                 <div>{message.text}</div>
+                {message.image ? <img src={message.image} alt="Uploaded equation" style={{ marginTop: 8, maxWidth: '100%', borderRadius: 8 }} /> : null}
                 {message.role === 'assistant' ? <div className="debug-tag"><span className="debug-tag__item">path: {message.source_type || 'none'}</span></div> : null}
                 {message.examples?.length ? (
                   <div style={{ marginTop: 8 }}>

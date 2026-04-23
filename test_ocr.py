@@ -1,30 +1,36 @@
-#!/usr/bin/env python
-"""
-Simple test script to verify OCR functionality.
-Usage: python test_ocr.py
-"""
+from groq import Groq
+import base64
 import os
-import django
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
-django.setup()
+# Function to encode the image
+def encode_image(image_path):
+  with open(image_path, "rb") as image_file:
+    return base64.b64encode(image_file.read()).decode('utf-8')
 
-from backend.apps.core.services.ai_service import extract_text_from_image
+# Path to your image
+image_path = "sf.jpg"
 
-# Test with a public image URL
-test_image_url = "https://upload.wikimedia.org/wikipedia/commons/f/f2/LPU-v1-die.jpg"
-test_instruction = "What's in this image?"
+# Getting the base64 string
+base64_image = encode_image("w4rr16fbov721.jpg")
 
-print("Testing OCR with Groq Vision API...")
-print(f"Image URL: {test_image_url}")
-print(f"Instruction: {test_instruction}")
-print("-" * 80)
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
-try:
-    result = extract_text_from_image(test_image_url, test_instruction)
-    print("✅ OCR SUCCESS")
-    print("Extracted text:")
-    print(result)
-except Exception as e:
-    print("❌ OCR FAILED")
-    print(f"Error: {e}")
+chat_completion = client.chat.completions.create(
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "What's in this image?"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}",
+                    },
+                },
+            ],
+        }
+    ],
+    model="meta-llama/llama-4-scout-17b-16e-instruct",
+)
+
+print(chat_completion.choices[0].message.content)

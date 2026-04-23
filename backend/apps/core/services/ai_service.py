@@ -118,25 +118,3 @@ def extract_text_from_image(image_url: str, instruction: str = "Extract all text
         top_p=1,
         stream=False,
     )
-
-
-def extract_equation_to_latex(image_url: str) -> str:
-    return _complete(
-        [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Extract the mathematical equation from this image and convert it to LaTeX format. Return ONLY the LaTeX code (wrapped in $ for inline or $$ for block math). Do not include any explanation or markdown formatting, just the LaTeX equation itself.",
-                    },
-                    {"type": "image_url", "image_url": {"url": image_url}},
-                ],
-            }
-        ],
-        model="meta-llama/llama-4-scout-17b-16e-instruct",
-        temperature=0.3,
-        max_completion_tokens=512,
-        top_p=1,
-        stream=False,
-    )

@@ -37,7 +37,6 @@ from backend.apps.core.services.ai_service import (
     generate_answer_explanation,
     generate_quiz as generate_ai_quiz,
     extract_text_from_image,
-    extract_equation_to_latex,
 )
 from backend.apps.core.services.retrieval_service import retrieve_context
 
@@ -540,50 +539,5 @@ class OCRView(APIView):
 
         image_url = serializer.validated_data["image_url"]
         instruction = serializer.validated_data.get("instruction", "Extract all text from this image")
-
-        try:
-            extracted_text = extract_text_from_image(image_url, instruction)
-            return Response(
-                {
-                    "success": True,
-                    "text": extracted_text,
-                    "image_url": image_url,
-                },
-                status=status.HTTP_200_OK,
-            )
-        except Exception as e:
-            return Response(
-                {
-                    "success": False,
-                    "error": str(e),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-class EquationOCRView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        serializer = OCRSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        image_url = serializer.validated_data["image_url"]
-
-        try:
-            latex = extract_equation_to_latex(image_url)
-            return Response(
-                {
-                    "success": True,
-                    "latex": latex,
-                    "image_url": image_url,
-                },
-                status=status.HTTP_200_OK,
-            )
-        except Exception as e:
-            return Response(
-                {
-                    "success": False,
-                    "error": str(e),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        extracted_text = extract_text_from_image(image_url, instruction)
+        return Response({"success": True, "text": extracted_text, "image_url": image_url}, status=status.HTTP_200_OK)
