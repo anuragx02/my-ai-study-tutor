@@ -1,25 +1,20 @@
 from django.contrib.auth import authenticate, get_user_model
 from rest_framework import serializers
-from backend.apps.core.models import ChatMessage, ChatSession, Question, Quiz, Topic, UserPerformance
+from backend.apps.core.models import ChatMessage, ChatSession, Question, Quiz, UserPerformance
 User = get_user_model()
-class TopicSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Topic
-        fields = ["id", "title", "difficulty"]
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = ["id", "quiz", "question_text", "option_a", "option_b", "option_c", "option_d"]
 class QuizSerializer(serializers.ModelSerializer):
     questions = QuestionSerializer(many=True, read_only=True)
-    topic_title = serializers.CharField(source="topic.title", read_only=True)
 
     class Meta:
         model = Quiz
-        fields = ["id", "topic", "topic_title", "difficulty", "total_questions", "created_by", "created_at", "questions"]
+        fields = ["id", "focus", "difficulty", "total_questions", "created_by", "created_at", "questions"]
         read_only_fields = ["created_by", "created_at"]
 class UserPerformanceSerializer(serializers.ModelSerializer):
-    quiz_title = serializers.CharField(source="quiz.topic.title", read_only=True)
+    quiz_title = serializers.CharField(source="quiz.focus", read_only=True)
     class Meta:
         model = UserPerformance
         fields = ["id", "user", "quiz", "quiz_title", "score", "attempt_date", "completion_time"]

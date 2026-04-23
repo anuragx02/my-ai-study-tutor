@@ -32,6 +32,7 @@ export default function QuizPage() {
   }
 
   async function submitQuiz() {
+    setError('')
     const elapsedSeconds = Math.max(1, Math.floor((Date.now() - startedAtRef.current) / 1000))
     const payload = {
       quiz_id: quiz.id,
@@ -41,8 +42,13 @@ export default function QuizPage() {
         selected_option: answers[question.id],
       })),
     }
-    const { data } = await api.post('/quiz/submit', payload)
-    setResult(data)
+    try {
+      const { data } = await api.post('/quiz/submit', payload)
+      setResult(data)
+    } catch (submitError) {
+      const response = submitError.response?.data
+      setError(response?.detail || Object.values(response || {})[0]?.[0] || 'Unable to submit quiz.')
+    }
   }
 
   return (
@@ -65,7 +71,7 @@ export default function QuizPage() {
 
       {quiz ? (
         <div style={{ marginTop: 24 }}>
-          <QuizCard title={quiz.topic_title || quiz.topic} difficulty={quiz.difficulty} totalQuestions={quiz.total_questions} />
+          <QuizCard title={quiz.focus} difficulty={quiz.difficulty} totalQuestions={quiz.total_questions} />
           <div style={{ display: 'grid', gap: 16, marginTop: 16 }}>
             {quiz.questions.map((question, index) => (
               <article key={question.id} className="card">

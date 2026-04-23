@@ -14,7 +14,6 @@ from backend.apps.core.models import (
     ChatSession,
     Question,
     Quiz,
-    Topic,
     UserPerformance,
 )
 from backend.apps.core.serializers import (
@@ -27,7 +26,6 @@ from backend.apps.core.serializers import (
     QuizGenerateSerializer,
     QuizSerializer,
     QuizSubmitSerializer,
-    TopicSerializer,
     UserPerformanceSerializer,
     UserSerializer,
     OCRSerializer,
@@ -100,16 +98,6 @@ class ProfileView(APIView):
         serializer.save()
         return Response(serializer.data)
 
-class TopicListCreateView(generics.ListCreateAPIView):
-    serializer_class = TopicSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return Topic.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
 class QuizGenerateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -120,9 +108,9 @@ class QuizGenerateView(APIView):
         total_questions = serializer.validated_data["total_questions"]
 
         focus = serializer.validated_data.get("focus", "").strip()
-        quiz_topic = focus or "General Study"
+        quiz_focus = focus or "General Study"
         try:
-            payload = generate_ai_quiz(topic=quiz_topic, difficulty=difficulty, total_questions=total_questions)
+            payload = generate_ai_quiz(focus=quiz_focus, difficulty=difficulty, total_questions=total_questions)
         except ValueError:
             return Response(
                 {"detail": "Quiz generation failed: AI returned invalid JSON. Retry once."},
@@ -145,13 +133,6 @@ class QuizGenerateView(APIView):
             return Response(
                 {"detail": "Quiz generation failed: AI response did not include questions."},
                 status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        topic = Topic.objects.filter(user=request.user).order_by("id").first()
-        if not topic:
-            return Response(
-                {"detail": "Create a topic before generating a quiz."},
-                status=status.HTTP_400_BAD_REQUEST,
             )
 
         required_keys = {
@@ -211,7 +192,7 @@ class QuizGenerateView(APIView):
         try:
             with transaction.atomic():
                 quiz = Quiz.objects.create(
-                    topic=topic,
+                    focus=quiz_focus,
                     difficulty=difficulty,
                     total_questions=total_questions,
                     created_by=request.user,
@@ -313,7 +294,7 @@ class QuizSubmitView(generics.CreateAPIView):
                 incorrect_questions.append(
                     {
                         "question_id": question.id,
-                        "topic": quiz.topic.title,
+                        "topic": quiz.focus,
                     }
                 )
 
@@ -350,9 +331,9 @@ class QuizSubmitView(generics.CreateAPIView):
             completion_time=serializer.validated_data["completion_time"],
         )
 
-        weak_topics = sorted({item["topic"] for item in incorrect_questions})
-        if weak_topics:
-            recommendation = f"Focus next on: {', '.join(weak_topics)}. Review the incorrect questions and retake a quiz on these topics."
+        weak_focuses = sorted({item["topic"] for item in incorrect_questions})
+        if weak_focuses:
+            recommendation = f"Focus next on: {', '.join(weak_focuses)}. Review the incorrect questions and retake a quiz on these focus areas."
         else:
             recommendation = "Great work. Try a harder quiz or a new topic to keep improving."
 
@@ -371,7 +352,7 @@ class QuizSubmitView(generics.CreateAPIView):
         )
 
 class QuizListView(generics.ListAPIView):
-    queryset = Quiz.objects.select_related("topic", "created_by").prefetch_related("questions")
+    queryset = Quiz.objects.select_related("created_by").prefetch_related("questions")
     serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated]
 
@@ -473,7 +454,7 @@ class ProgressView(APIView):
 
     def get(self, request):
         performances = (
-            UserPerformance.objects.select_related("quiz__topic")
+            UserPerformance.objects.select_related("quiz")
             .filter(user=request.user)
             .order_by("attempt_date")
         )
@@ -501,22 +482,22 @@ class RecommendationView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        performances = UserPerformance.objects.select_related("quiz__topic").filter(user=request.user)
-        weak_topics = []
+        performances = UserPerformance.objects.select_related("quiz").filter(user=request.user)
+        weak_focuses = []
         for performance in performances:
             if performance.score < 70:
-                weak_topics.append(performance.quiz.topic.title)
+                weak_focuses.append(performance.quiz.focus)
 
-        if weak_topics:
-            selected_topics = list(dict.fromkeys(weak_topics))[:5]
+        if weak_focuses:
+            selected_focuses = list(dict.fromkeys(weak_focuses))[:5]
             items = [
                 {
                     "id": index + 1,
-                    "topic": topic_title,
-                    "suggested_material": f"Revisit {topic_title} concepts in chat and retake a quiz.",
+                    "topic": focus_label,
+                    "suggested_material": f"Revisit {focus_label} concepts in chat and retake a quiz.",
                     "date_generated": timezone.now().isoformat().replace("+00:00", "Z"),
                 }
-                for index, topic_title in enumerate(selected_topics)
+                for index, focus_label in enumerate(selected_focuses)
             ]
             return Response(items)
 

@@ -24,31 +24,13 @@ class User(AbstractUser):
         return self.email
 
 
-class Topic(models.Model):
-    class Difficulty(models.TextChoices):
-        EASY = "easy", "Easy"
-        MEDIUM = "medium", "Medium"
-        HARD = "hard", "Hard"
-
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="topics")
-    title = models.CharField(max_length=200)
-    difficulty = models.CharField(max_length=20, choices=Difficulty.choices, default=Difficulty.EASY)
-
-    class Meta:
-        ordering = ["user", "title"]
-        db_table = "courses_topic"
-
-    def __str__(self):
-        return self.title
-
-
 class Quiz(models.Model):
     class Difficulty(models.TextChoices):
         EASY = "easy", "Easy"
         MEDIUM = "medium", "Medium"
         HARD = "hard", "Hard"
 
-    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="quizzes")
+    focus = models.CharField(max_length=255, default="General Study")
     difficulty = models.CharField(max_length=20, choices=Difficulty.choices)
     total_questions = models.PositiveIntegerField(default=5)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="quizzes")
@@ -59,7 +41,7 @@ class Quiz(models.Model):
         db_table = "quiz_quiz"
 
     def __str__(self) -> str:
-        return f"{self.topic.title} - {self.difficulty}"
+        return f"{self.focus} - {self.difficulty}"
 
 
 class Question(models.Model):

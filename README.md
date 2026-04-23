@@ -10,8 +10,8 @@ Groq powers the AI tutor and quiz generation layer when `GROQ_API_KEY` is config
 - Data layer: SQLite locally, PostgreSQL in production
 
 ## Local setup
-1. Create a Python virtual environment at the project root: `.venv`.
-2. Install backend dependencies from root: `./.venv/Scripts/python.exe -m pip install -r backend/requirements.txt`.
+1. Create and activate a Python environment for the project.
+2. Install backend dependencies from root: `python -m pip install -r backend/requirements.txt`.
 3. Install frontend dependencies from root: `npm --prefix frontend install`.
 4. Copy `backend/.env` values as needed for your local environment.
 
@@ -67,17 +67,33 @@ npm run frontend
 ```
 
 The root `manage.py` is the Django entrypoint; it loads the `backend/` package path automatically.
+If PowerShell blocks `npm.ps1` on Windows, use `npm.cmd` for the same commands.
 
 ## API endpoints
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `GET /api/auth/profile`
 - `PUT /api/auth/profile`
+- `POST /api/auth/logout`
+- `POST /api/auth/refresh`
 - `POST /api/ai/ask`
+- `GET /api/ai/sessions`
+- `POST /api/ai/ocr`
+- `GET /api/quiz/`
 - `POST /api/quiz/generate`
 - `POST /api/quiz/submit`
 - `GET /api/analytics/progress`
+- `DELETE /api/analytics/history`
 - `GET /api/recommendations/`
+
+### Example quiz generate body
+```json
+{
+	"focus": "Algebra",
+	"difficulty": "easy",
+	"total_questions": 5
+}
+```
 
 ### Example quiz submit body
 ```json

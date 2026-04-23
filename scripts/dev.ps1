@@ -1,9 +1,9 @@
 $workspaceRoot = Split-Path -Parent $PSScriptRoot
-$pythonPath = Join-Path $workspaceRoot ".venv\Scripts\python.exe"
+$pythonCommand = "python"
 $managePath = Join-Path $workspaceRoot "manage.py"
 
-if (-not (Test-Path $pythonPath)) {
-    Write-Error "Python environment not found at $pythonPath"
+if (-not (Get-Command $pythonCommand -ErrorAction SilentlyContinue)) {
+    Write-Error "Python was not found on PATH"
     exit 1
 }
 
@@ -14,10 +14,10 @@ if (-not (Test-Path $managePath)) {
 
 Set-Location $workspaceRoot
 Write-Host "Cleaning up legacy quiz attempts..." -ForegroundColor Cyan
-& $pythonPath $managePath cleanup_zero_scores
+& $pythonCommand $managePath cleanup_zero_scores
 
-$backendCommand = "Set-Location '$workspaceRoot'; & '$pythonPath' '$managePath' runserver"
+$backendCommand = "Set-Location '$workspaceRoot'; & $pythonCommand '$managePath' runserver"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCommand | Out-Null
 
 Set-Location $workspaceRoot
-npm --prefix frontend run dev
+npm.cmd --prefix frontend run dev

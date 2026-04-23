@@ -62,7 +62,7 @@ def ask_ai(
         return AIResponse(answer=answer, examples=[], related_topics=[])
 
     user_prompt = (
-        f"Topic context: {topic_context or ''}\n"
+        f"Study context: {topic_context or ''}\n"
         f"Question: {question}\n"
         "Return JSON only."
     )
@@ -88,7 +88,7 @@ def ask_ai(
     )
 
 
-def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5) -> dict:
+def generate_quiz(focus: str, difficulty: str = "easy", total_questions: int = 5) -> dict:
     return json.loads(
         _extract_json_payload(
             _complete(
@@ -99,7 +99,7 @@ def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5
                     },
                     {
                         "role": "user",
-                        "content": f"Topic: {topic}\nDifficulty: {difficulty}\nQuestion count: {total_questions}",
+                        "content": f"Focus: {focus}\nDifficulty: {difficulty}\nQuestion count: {total_questions}",
                     },
                 ],
                 temperature=0.2,
