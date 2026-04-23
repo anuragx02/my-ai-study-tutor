@@ -1,6 +1,11 @@
 import { useEffect, useState, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
+import rehypeKatex from 'rehype-katex'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 import api from '../services/api'
 import { fileToDataUrl, isValidImageFile } from '../utils/imageConverter'
+import 'katex/dist/katex.min.css'
 
 const starterMessages = [{ role: 'assistant', text: 'Ask me anything about a topic and I will explain it step by step.' }]
 
@@ -13,48 +18,25 @@ function getApiErrorMessage(error, fallback = 'Request failed.') {
   return fallback
 }
 
-function renderInlineMarkdown(text) {
-  const parts = String(text || '').split(/(\*\*[^*]+\*\*)/g)
-  return parts.map((part, index) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={`${index}-${part}`}>{part.slice(2, -2)}</strong>
-    }
-    return <span key={`${index}-${part}`}>{part}</span>
-  })
+function normalizeTutorMarkdown(text) {
+  return String(text || '')
+    .replace(/\\\[([\s\S]*?)\\\]/g, '\n\n$$$$$1$$$$\n\n')
+    .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$')
+    .replace(/\s+(#{1,6}\s+)/g, '\n\n$1')
 }
 
 function MessageText({ text }) {
-  const lines = String(text || '').split(/\r?\n/)
-
   return (
-    <div className="message-content">
-      {lines.map((line, index) => {
-        const trimmed = line.trim()
-        const key = `${index}-${line}`
-
-        if (!trimmed) {
-          return <div key={key} className="message-spacer" />
-        }
-
-        const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/)
-        if (headingMatch) {
-          const HeadingTag = headingMatch[1].length === 1 ? 'h3' : 'h4'
-          return <HeadingTag key={key}>{renderInlineMarkdown(headingMatch[2])}</HeadingTag>
-        }
-
-        const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/)
-        if (bulletMatch) {
-          return <p key={key} className="message-list-item">- {renderInlineMarkdown(bulletMatch[1])}</p>
-        }
-
-        const numberedMatch = trimmed.match(/^(\d+)[.)]\s+(.+)$/)
-        if (numberedMatch) {
-          return <p key={key} className="message-list-item">{numberedMatch[1]}. {renderInlineMarkdown(numberedMatch[2])}</p>
-        }
-
-        return <p key={key}>{renderInlineMarkdown(line)}</p>
-      })}
-    </div>
+    <ReactMarkdown
+      className="message-content"
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex]}
+      components={{
+        a: ({ node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+      }}
+    >
+      {normalizeTutorMarkdown(text)}
+    </ReactMarkdown>
   )
 }
 

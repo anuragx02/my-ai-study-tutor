@@ -274,32 +274,65 @@ button, input, textarea, select { font: inherit; }
 
 .message-content {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   overflow-wrap: anywhere;
 }
 
 .message-content p,
 .message-content h3,
-.message-content h4 {
+.message-content h4,
+.message-content ul,
+.message-content ol {
   margin: 0;
 }
 
 .message-content h3 {
-  margin-top: 4px;
-  font-size: 1.05rem;
+  margin-top: 6px;
+  font-size: 1.08rem;
 }
 
 .message-content h4 {
-  margin-top: 3px;
+  margin-top: 4px;
   font-size: 1rem;
 }
 
-.message-list-item {
-  padding-left: 12px;
+.message-content ul,
+.message-content ol {
+  padding-left: 22px;
+  display: grid;
+  gap: 6px;
 }
 
-.message-spacer {
-  height: 6px;
+.message-content code {
+  border: 1px solid rgba(137, 170, 255, 0.24);
+  border-radius: 6px;
+  background: rgba(3, 8, 17, 0.5);
+  padding: 1px 5px;
+}
+
+.message-content pre {
+  margin: 0;
+  overflow-x: auto;
+  border-radius: 10px;
+  background: rgba(3, 8, 17, 0.7);
+  padding: 12px;
+}
+
+.message-content pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.message-content .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 0;
+}
+
+.message-content .katex {
+  font-size: 1.06em;
+  white-space: normal;
 }
 
 .message-image {

@@ -56,7 +56,14 @@ def ask_ai(
 
     if topic_context == "WEB_MODE_ENABLED":
         answer = _complete(
-            [*history, {"role": "user", "content": question}],
+            [
+                {
+                    "role": "system",
+                    "content": "You are AI Study Tutor. Use clear Markdown with short paragraphs, numbered steps, and LaTeX for math.",
+                },
+                *history,
+                {"role": "user", "content": question},
+            ],
             model="groq/compound-mini",
         )
         return AIResponse(answer=answer, examples=[], related_topics=[])
@@ -66,7 +73,7 @@ def ask_ai(
         [
             {
                 "role": "system",
-                "content": "You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving. Focus on accuracy, clarity, and helpful guidance.",
+                "content": "You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving. Use clear Markdown with short paragraphs, numbered steps, and LaTeX for math.",
             },
             *history,
             {"role": "user", "content": user_prompt},
