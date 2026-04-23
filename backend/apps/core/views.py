@@ -236,7 +236,6 @@ class QuizGenerateView(APIView):
                         option_c=item["option_c"],
                         option_d=item["option_d"],
                         correct_option=normalized_correct_option,
-                        explanation=str(item.get("explanation", "")).strip(),
                     )
         except DatabaseError:
             return Response(

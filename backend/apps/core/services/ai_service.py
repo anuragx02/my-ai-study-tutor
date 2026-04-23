@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -10,6 +11,28 @@ class AIResponse:
     answer: str
     examples: list[str]
     related_topics: list[str]
+
+
+def _extract_json_payload(content: str) -> str:
+    text = (content or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s*```$", "", text)
+
+    try:
+        json.loads(text)
+        return text
+    except json.JSONDecodeError:
+        pass
+
+    object_start = text.find("{")
+    object_end = text.rfind("}")
+    if object_start != -1 and object_end != -1 and object_end > object_start:
+        candidate = text[object_start : object_end + 1]
+        json.loads(candidate)
+        return candidate
+
+    raise ValueError("AI response did not contain valid JSON")
 
 
 def _complete(messages: list[dict], model: str | None = None, temperature: float = 0.2, **kwargs) -> str:
@@ -44,16 +67,18 @@ def ask_ai(
         "Return JSON only."
     )
     payload = json.loads(
-        _complete(
-            [
-                {
-                    "role": "system",
-                    "content": "You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving. Focus on accuracy, clarity, and helpful guidance.",
-                },
-                *history,
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.2,
+        _extract_json_payload(
+            _complete(
+                [
+                    {
+                        "role": "system",
+                        "content": "You are AI Study Tutor. Provide accurate, step-by-step help for studying and problem solving. Focus on accuracy, clarity, and helpful guidance.",
+                    },
+                    *history,
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+            )
         )
     )
     return AIResponse(
@@ -65,18 +90,20 @@ def ask_ai(
 
 def generate_quiz(topic: str, difficulty: str = "easy", total_questions: int = 5) -> dict:
     return json.loads(
-        _complete(
-            [
-                {
-                    "role": "system",
-                    "content": "Generate a quiz as strict JSON only. Schema: topic, difficulty, total_questions, questions. Each question must have question_text, option_a, option_b, option_c, option_d, correct_option.",
-                },
-                {
-                    "role": "user",
-                    "content": f"Topic: {topic}\nDifficulty: {difficulty}\nQuestion count: {total_questions}",
-                },
-            ],
-            temperature=0.2,
+        _extract_json_payload(
+            _complete(
+                [
+                    {
+                        "role": "system",
+                        "content": "Generate a quiz as strict JSON only. Schema: topic, difficulty, total_questions, questions. Each question must have question_text, option_a, option_b, option_c, option_d, correct_option.",
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Topic: {topic}\nDifficulty: {difficulty}\nQuestion count: {total_questions}",
+                    },
+                ],
+                temperature=0.2,
+            )
         )
     )
 
