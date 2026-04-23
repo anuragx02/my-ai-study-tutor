@@ -9,6 +9,8 @@ export default function ChatTutorPage() {
   const [currentSessionId, setCurrentSessionId] = useState(null)
   const [messages, setMessages] = useState(starterMessages)
   const [question, setQuestion] = useState('')
+  const [pendingImage, setPendingImage] = useState('')
+  const [pendingImageText, setPendingImageText] = useState('')
   const [forceWeb, setForceWeb] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -59,6 +61,8 @@ export default function ChatTutorPage() {
         setCurrentSessionId(null)
         setMessages(starterMessages)
         setQuestion('')
+        setPendingImage('')
+        setPendingImageText('')
         setError('')
         setForceWeb(false)
       }
@@ -78,6 +82,8 @@ export default function ChatTutorPage() {
         setCurrentSessionId(null)
         setMessages(starterMessages)
         setQuestion('')
+        setPendingImage('')
+        setPendingImageText('')
         setError('')
         setForceWeb(false)
       }
@@ -100,8 +106,8 @@ export default function ChatTutorPage() {
     try {
       const dataUrl = await fileToDataUrl(file)
       const { data } = await api.post('/ai/ocr', { image_url: dataUrl, instruction: "What's in this image? If it contains a math problem, explain it step by step." })
-      setMessages((current) => [...current, { role: 'user', text: 'Uploaded image', image: dataUrl }])
-      setQuestion((current) => (current ? `${current} ${data.text}` : data.text))
+      setPendingImage(dataUrl)
+      setPendingImageText(data.text || '')
     } catch {
       setError('Request failed.')
     } finally {
@@ -112,13 +118,14 @@ export default function ChatTutorPage() {
 
   async function handleSubmit(event) {
     event.preventDefault()
-    if (!question.trim()) return
+    if (!question.trim() && !pendingImageText) return
 
-    const prompt = question.trim()
+    const promptText = question.trim()
+    const prompt = pendingImageText ? `${promptText}\n\nImage content:\n${pendingImageText}`.trim() : promptText
     setLoading(true)
     setError('')
     setQuestion('')
-    setMessages((current) => [...current, { role: 'user', text: prompt }])
+    setMessages((current) => [...current, { role: 'user', text: promptText || 'Image attached', ...(pendingImage ? { image: pendingImage } : {}) }])
 
     try {
       const payload = {
@@ -130,6 +137,8 @@ export default function ChatTutorPage() {
 
       await openSession(data.session_id)
       await loadSessions()
+      setPendingImage('')
+      setPendingImageText('')
     } catch {
       setError('Request failed.')
     } finally {
@@ -153,6 +162,8 @@ export default function ChatTutorPage() {
                 setCurrentSessionId(null)
                 setMessages(starterMessages)
                 setQuestion('')
+                setPendingImage('')
+                setPendingImageText('')
                 setError('')
                 setForceWeb(false)
               }}
@@ -241,10 +252,19 @@ export default function ChatTutorPage() {
             >
               {forceWeb ? 'Web on' : 'Web off'}
             </button>
-            <button className="button" type="submit" disabled={loading || processingImage}>{loading ? 'Thinking...' : 'Send'}</button>
+            <button className="button" type="submit" disabled={loading || processingImage || (!question.trim() && !pendingImageText)}>{loading ? 'Thinking...' : 'Send'}</button>
           </form>
+          {pendingImage ? (
+            <div className="card" style={{ marginTop: 10, padding: 10 }}>
+              <div className="muted" style={{ marginBottom: 8, fontSize: 13 }}>Image attached (not sent yet)</div>
+              <img src={pendingImage} alt="Pending upload" style={{ maxWidth: '100%', borderRadius: 8 }} />
+              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="button" className="button" onClick={() => { setPendingImage(''); setPendingImageText('') }}>Remove</button>
+              </div>
+            </div>
+          ) : null}
           <div className="muted" style={{ marginTop: 10, fontSize: 13 }}>
-            {processingImage ? 'Processing equation image...' : `Web search ${forceWeb ? 'is enabled' : 'is disabled'}.`}
+            {processingImage ? 'Processing image...' : `Web search ${forceWeb ? 'is enabled' : 'is disabled'}.`}
           </div>
           {error ? <div style={{ color: '#ff8b92', marginTop: 12 }}>{error}</div> : null}
         </div>
