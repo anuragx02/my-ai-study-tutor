@@ -383,13 +383,15 @@ class AskView(APIView):
         serializer = AskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         question_text = serializer.validated_data["question"]
+        image_context = serializer.validated_data.get("image_context", "")
         session_id = serializer.validated_data.get("session_id")
         force_web = serializer.validated_data.get("force_web", False)
+        ai_question = f"{question_text}\n\nImage content:\n{image_context}".strip() if image_context else question_text
 
         if session_id:
             session = get_object_or_404(ChatSession, id=session_id, user=request.user)
         else:
-            title = question_text.strip()[:48]
+            title = (question_text.strip() or "Image question")[:48]
             session = ChatSession.objects.create(
                 user=request.user,
                 title=title,
@@ -411,10 +413,10 @@ class AskView(APIView):
             text=question_text,
         )
 
-        retrieval = retrieve_context(question=question_text, user=request.user, force_web=force_web)
+        retrieval = retrieve_context(question=question_text or image_context, user=request.user, force_web=force_web)
         is_academic = True
         result = ask_ai(
-            question_text,
+            ai_question,
             topic_context=retrieval.context,
             conversation_history=conversation_history,
             is_academic=is_academic,

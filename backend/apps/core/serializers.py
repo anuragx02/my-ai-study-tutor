@@ -41,6 +41,7 @@ class ProgressSerializer(serializers.Serializer):
     study_time_minutes = serializers.IntegerField()
 class AskSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=2000)
+    image_context = serializers.CharField(required=False, allow_blank=True)
     session_id = serializers.IntegerField(required=False)
     force_web = serializers.BooleanField(default=False)
 class ChatMessageSerializer(serializers.ModelSerializer):

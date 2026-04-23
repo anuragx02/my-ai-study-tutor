@@ -121,7 +121,6 @@ export default function ChatTutorPage() {
     if (!question.trim() && !pendingImageText) return
 
     const promptText = question.trim()
-    const prompt = pendingImageText ? `${promptText}\n\nImage content:\n${pendingImageText}`.trim() : promptText
     setLoading(true)
     setError('')
     setQuestion('')
@@ -129,7 +128,8 @@ export default function ChatTutorPage() {
 
     try {
       const payload = {
-        question: prompt,
+        question: promptText,
+        ...(pendingImageText ? { image_context: pendingImageText } : {}),
         ...(currentSessionId ? { session_id: currentSessionId } : {}),
         force_web: forceWeb,
       }
@@ -202,7 +202,7 @@ export default function ChatTutorPage() {
             {messages.map((message, index) => (
               <div key={index} className={`message ${message.role}`}>
                 <div>{message.text}</div>
-                {message.image ? <img src={message.image} alt="Uploaded equation" style={{ marginTop: 8, maxWidth: '100%', borderRadius: 8 }} /> : null}
+                {message.image ? <img src={message.image} alt="Uploaded equation" style={{ marginTop: 8, maxWidth: 180, width: '100%', borderRadius: 8 }} /> : null}
                 {message.role === 'assistant' ? <div className="debug-tag"><span className="debug-tag__item">path: {message.source_type || 'none'}</span></div> : null}
                 {message.examples?.length ? (
                   <div style={{ marginTop: 8 }}>
@@ -257,7 +257,7 @@ export default function ChatTutorPage() {
           {pendingImage ? (
             <div className="card" style={{ marginTop: 10, padding: 10 }}>
               <div className="muted" style={{ marginBottom: 8, fontSize: 13 }}>Image attached (not sent yet)</div>
-              <img src={pendingImage} alt="Pending upload" style={{ maxWidth: '100%', borderRadius: 8 }} />
+              <img src={pendingImage} alt="Pending upload" style={{ maxWidth: 180, width: '100%', borderRadius: 8 }} />
               <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
                 <button type="button" className="button" onClick={() => { setPendingImage(''); setPendingImageText('') }}>Remove</button>
               </div>
