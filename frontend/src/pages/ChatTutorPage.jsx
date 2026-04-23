@@ -13,6 +13,51 @@ function getApiErrorMessage(error, fallback = 'Request failed.') {
   return fallback
 }
 
+function renderInlineMarkdown(text) {
+  const parts = String(text || '').split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={`${index}-${part}`}>{part.slice(2, -2)}</strong>
+    }
+    return <span key={`${index}-${part}`}>{part}</span>
+  })
+}
+
+function MessageText({ text }) {
+  const lines = String(text || '').split(/\r?\n/)
+
+  return (
+    <div className="message-content">
+      {lines.map((line, index) => {
+        const trimmed = line.trim()
+        const key = `${index}-${line}`
+
+        if (!trimmed) {
+          return <div key={key} className="message-spacer" />
+        }
+
+        const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/)
+        if (headingMatch) {
+          const HeadingTag = headingMatch[1].length === 1 ? 'h3' : 'h4'
+          return <HeadingTag key={key}>{renderInlineMarkdown(headingMatch[2])}</HeadingTag>
+        }
+
+        const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/)
+        if (bulletMatch) {
+          return <p key={key} className="message-list-item">- {renderInlineMarkdown(bulletMatch[1])}</p>
+        }
+
+        const numberedMatch = trimmed.match(/^(\d+)[.)]\s+(.+)$/)
+        if (numberedMatch) {
+          return <p key={key} className="message-list-item">{numberedMatch[1]}. {renderInlineMarkdown(numberedMatch[2])}</p>
+        }
+
+        return <p key={key}>{renderInlineMarkdown(line)}</p>
+      })}
+    </div>
+  )
+}
+
 export default function ChatTutorPage() {
   const [sessions, setSessions] = useState([])
   const [currentSessionId, setCurrentSessionId] = useState(null)
@@ -46,6 +91,7 @@ export default function ChatTutorPage() {
       const serverMessages = data.messages.map((message) => ({
         role: message.role,
         text: message.text,
+        image: message.image_url,
         examples: message.examples,
         related_topics: message.related_topics,
         source_type: message.source_type,
@@ -139,6 +185,7 @@ export default function ChatTutorPage() {
       const payload = {
         question: promptText,
         ...(pendingImageText ? { image_context: pendingImageText } : {}),
+        ...(pendingImage ? { image_url: pendingImage } : {}),
         ...(currentSessionId ? { session_id: currentSessionId } : {}),
         force_web: forceWeb,
       }
@@ -210,8 +257,8 @@ export default function ChatTutorPage() {
           <div className="chat-window">
             {messages.map((message, index) => (
               <div key={index} className={`message ${message.role}`}>
-                <div>{message.text}</div>
-                {message.image ? <img src={message.image} alt="Uploaded equation" style={{ marginTop: 8, maxWidth: 180, width: '100%', borderRadius: 8 }} /> : null}
+                <MessageText text={message.text} />
+                {message.image ? <img className="message-image" src={message.image} alt="Uploaded equation" /> : null}
                 {message.role === 'assistant' ? <div className="debug-tag"><span className="debug-tag__item">path: {message.source_type || 'none'}</span></div> : null}
                 {message.examples?.length ? (
                   <div style={{ marginTop: 8 }}>

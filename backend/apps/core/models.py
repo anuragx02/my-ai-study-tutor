@@ -96,6 +96,7 @@ class ChatMessage(models.Model):
     session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, related_name="messages")
     role = models.CharField(max_length=20, choices=Role.choices)
     text = models.TextField()
+    image_url = models.TextField(blank=True, default="")
     examples = models.JSONField(default=list, blank=True)
     related_topics = models.JSONField(default=list, blank=True)
     citations = models.JSONField(default=list, blank=True)

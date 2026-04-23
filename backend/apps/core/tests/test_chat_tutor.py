@@ -42,11 +42,18 @@ def test_image_only_chat_request_is_accepted(api_client, user, monkeypatch):
         lambda *args, **kwargs: AIResponse(answer="The image shows a quadratic equation.", examples=[], related_topics=[]),
     )
 
-    response = api_client.post("/api/ai/ask", {"question": "", "image_context": "x^2 + 5x + 6 = 0"}, format="json")
+    image_url = "data:image/png;base64,abc123"
+
+    response = api_client.post(
+        "/api/ai/ask",
+        {"question": "", "image_context": "x^2 + 5x + 6 = 0", "image_url": image_url},
+        format="json",
+    )
 
     assert response.status_code == 200
     assert response.data["answer"] == "The image shows a quadratic equation."
     assert ChatMessage.objects.filter(role=ChatMessage.Role.USER, text="Image attached").exists()
+    assert ChatMessage.objects.get(role=ChatMessage.Role.USER, text="Image attached").image_url == image_url
 
 
 @pytest.mark.django_db

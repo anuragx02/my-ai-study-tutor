@@ -272,6 +272,45 @@ button, input, textarea, select { font: inherit; }
 .message.user { background: rgba(47, 116, 255, 0.16); justify-self: end; }
 .message.assistant { background: rgba(255, 255, 255, 0.06); max-width: 80%; }
 
+.message-content {
+  display: grid;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.message-content p,
+.message-content h3,
+.message-content h4 {
+  margin: 0;
+}
+
+.message-content h3 {
+  margin-top: 4px;
+  font-size: 1.05rem;
+}
+
+.message-content h4 {
+  margin-top: 3px;
+  font-size: 1rem;
+}
+
+.message-list-item {
+  padding-left: 12px;
+}
+
+.message-spacer {
+  height: 6px;
+}
+
+.message-image {
+  margin-top: 10px;
+  max-width: min(260px, 100%);
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(137, 170, 255, 0.24);
+  display: block;
+}
+
 .form-row {
   display: flex;
   gap: 12px;

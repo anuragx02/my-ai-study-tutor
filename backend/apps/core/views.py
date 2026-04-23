@@ -364,6 +364,7 @@ class AskView(APIView):
         serializer.is_valid(raise_exception=True)
         question_text = serializer.validated_data.get("question", "")
         image_context = serializer.validated_data.get("image_context", "")
+        image_url = serializer.validated_data.get("image_url", "")
         session_id = serializer.validated_data.get("session_id")
         force_web = serializer.validated_data.get("force_web", False)
         ai_question = f"{question_text}\n\nImage content:\n{image_context}".strip() if image_context else question_text
@@ -391,6 +392,7 @@ class AskView(APIView):
             session=session,
             role=ChatMessage.Role.USER,
             text=question_text or "Image attached",
+            image_url=image_url,
         )
 
         retrieval = retrieve_context(question=question_text or image_context, user=request.user, force_web=force_web)

@@ -37,6 +37,7 @@ class ProgressSerializer(serializers.Serializer):
 class AskSerializer(serializers.Serializer):
     question = serializers.CharField(max_length=2000, required=False, allow_blank=True)
     image_context = serializers.CharField(required=False, allow_blank=True)
+    image_url = serializers.CharField(required=False, allow_blank=True)
     session_id = serializers.IntegerField(required=False)
     force_web = serializers.BooleanField(default=False)
 
@@ -51,7 +52,7 @@ class AskSerializer(serializers.Serializer):
 class ChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChatMessage
-        fields = ["id", "role", "text", "examples", "related_topics", "citations", "retrieval_confidence", "source_type", "created_at"]
+        fields = ["id", "role", "text", "image_url", "examples", "related_topics", "citations", "retrieval_confidence", "source_type", "created_at"]
 class ChatSessionSerializer(serializers.ModelSerializer):
     last_message_preview = serializers.SerializerMethodField()
     message_count = serializers.IntegerField(source="messages.count", read_only=True)
