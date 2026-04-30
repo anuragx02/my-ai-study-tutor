@@ -8,6 +8,7 @@ export default function LoadingScreen() {
         height="64"
       />
       <div className="startup-loader__text">just a moment</div>
+      <small style={{ position: 'fixed', right: 12, bottom: 10, opacity: 0.55 }}>loading screen by my friend ;)</small>
     </div>
   )
 }
