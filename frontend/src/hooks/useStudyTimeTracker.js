@@ -1,10 +1,15 @@
 import { useEffect, useRef } from 'react'
 import { addOpenStudySeconds } from '../utils/studyTime'
 
-export default function useStudyTimeTracker() {
+export default function useStudyTimeTracker(user) {
   const lastVisibleAtRef = useRef(null)
 
   useEffect(() => {
+    if (!user?.id && !user?.email) {
+      lastVisibleAtRef.current = null
+      return undefined
+    }
+
     if (document.visibilityState === 'visible') {
       lastVisibleAtRef.current = Date.now()
     }
@@ -16,7 +21,7 @@ export default function useStudyTimeTracker() {
 
       const elapsedSeconds = Math.floor((Date.now() - lastVisibleAtRef.current) / 1000)
       if (elapsedSeconds > 0) {
-        addOpenStudySeconds(elapsedSeconds)
+        addOpenStudySeconds(elapsedSeconds, user)
       }
       lastVisibleAtRef.current = Date.now()
     }
@@ -46,5 +51,5 @@ export default function useStudyTimeTracker() {
       window.removeEventListener('beforeunload', flushVisibleTime)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [])
+  }, [user?.id, user?.email])
 }

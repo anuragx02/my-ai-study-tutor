@@ -35,18 +35,22 @@ export default function DashboardPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [user?.id, user?.email])
 
   useEffect(() => {
-    setOpenStudyMinutes(getStoredOpenStudyMinutes())
+    function refreshOpenStudyMinutes() {
+      setOpenStudyMinutes(getStoredOpenStudyMinutes(user))
+    }
+
+    refreshOpenStudyMinutes()
     const intervalId = window.setInterval(() => {
-      setOpenStudyMinutes(getStoredOpenStudyMinutes())
+      refreshOpenStudyMinutes()
     }, 15000)
 
     return () => {
       window.clearInterval(intervalId)
     }
-  }, [])
+  }, [user?.id, user?.email])
 
   const totalStudyMinutes = (summary?.study_time_minutes ?? 0) + openStudyMinutes
 

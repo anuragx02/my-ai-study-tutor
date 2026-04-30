@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '../context/AuthContext'
 import ProgressChart from '../components/ProgressChart'
 import RecommendationCard from '../components/RecommendationCard'
 import api from '../services/api'
@@ -12,49 +13,55 @@ const emptyProgress = {
 }
 
 export default function InsightsPage() {
+  const { user } = useAuth()
   const [progress, setProgress] = useState(emptyProgress)
   const [recommendations, setRecommendations] = useState([])
   const [clearing, setClearing] = useState(false)
   const [openStudyMinutes, setOpenStudyMinutes] = useState(0)
 
-  async function loadInsights() {
-    try {
-      const [progressResponse, recommendationsResponse] = await Promise.all([
-        api.get('/analytics/progress'),
-        api.get('/recommendations/'),
-      ])
-
-      setProgress(progressResponse.data || emptyProgress)
-      setRecommendations(recommendationsResponse.data || [])
-    } catch {
-      setProgress(emptyProgress)
-      setRecommendations([])
-    }
-  }
-
   useEffect(() => {
     let active = true
 
-    const wrapper = async () => {
-      await loadInsights()
+    async function loadInsights() {
+      try {
+        const [progressResponse, recommendationsResponse] = await Promise.all([
+          api.get('/analytics/progress'),
+          api.get('/recommendations/'),
+        ])
+
+        if (active) {
+          setProgress(progressResponse.data || emptyProgress)
+          setRecommendations(recommendationsResponse.data || [])
+        }
+      } catch {
+        if (active) {
+          setProgress(emptyProgress)
+          setRecommendations([])
+        }
+      }
     }
-    wrapper()
+
+    loadInsights()
 
     return () => {
       active = false
     }
-  }, [])
+  }, [user?.id, user?.email])
 
   useEffect(() => {
-    setOpenStudyMinutes(getStoredOpenStudyMinutes())
+    function refreshOpenStudyMinutes() {
+      setOpenStudyMinutes(getStoredOpenStudyMinutes(user))
+    }
+
+    refreshOpenStudyMinutes()
     const intervalId = window.setInterval(() => {
-      setOpenStudyMinutes(getStoredOpenStudyMinutes())
+      refreshOpenStudyMinutes()
     }, 15000)
 
     return () => {
       window.clearInterval(intervalId)
     }
-  }, [])
+  }, [user?.id, user?.email])
 
   const totalStudyMinutes = (progress.study_time_minutes ?? 0) + openStudyMinutes
 
@@ -66,7 +73,7 @@ export default function InsightsPage() {
     setClearing(true)
     try {
       await api.delete('/analytics/history')
-      resetStoredOpenStudySeconds()
+      resetStoredOpenStudySeconds(user)
       setOpenStudyMinutes(0)
       setProgress(emptyProgress)
       setRecommendations([])

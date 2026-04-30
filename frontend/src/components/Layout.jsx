@@ -11,7 +11,7 @@ const navItems = [
 
 export default function Layout() {
   const { user, logout } = useAuth()
-  useStudyTimeTracker()
+  useStudyTimeTracker(user)
 
   return (
     <div className="shell">

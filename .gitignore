@@ -58,3 +58,5 @@ backend/media/
 Thumbs.db
 .DS_Store
 tavily.py
+docs/BCSP-064_Project_Report_Draft.md
+docs/PROJECT_TECHNICAL_DETAILS.md
